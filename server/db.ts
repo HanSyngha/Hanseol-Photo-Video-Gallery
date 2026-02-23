@@ -101,20 +101,34 @@ try {
 }
 try { db.exec('CREATE INDEX IF NOT EXISTS idx_media_hash ON media(hash)'); } catch {}
 
-// 기존 파일들의 해시를 채워넣기
+// 기존 파일들의 해시를 채워넣기 (quick hash: head+tail+size)
 import crypto from 'crypto';
+const CHUNK = 4 * 1024 * 1024;
 const unhashed = db.prepare('SELECT id, filename FROM media WHERE hash IS NULL').all() as { id: number; filename: string }[];
 if (unhashed.length > 0) {
   const update = db.prepare('UPDATE media SET hash = ? WHERE id = ?');
   for (const row of unhashed) {
     try {
       const filePath = path.join(DATA_DIR, 'originals', row.filename);
-      if (fs.existsSync(filePath)) {
-        const hash = crypto.createHash('sha256');
-        const data = fs.readFileSync(filePath);
-        hash.update(data);
-        update.run(hash.digest('hex'), row.id);
+      if (!fs.existsSync(filePath)) continue;
+      const stat = fs.statSync(filePath);
+      const hash = crypto.createHash('sha256');
+      if (stat.size <= CHUNK) {
+        hash.update(fs.readFileSync(filePath));
+      } else {
+        const fd = fs.openSync(filePath, 'r');
+        const head = Buffer.alloc(CHUNK);
+        const tail = Buffer.alloc(CHUNK);
+        fs.readSync(fd, head, 0, CHUNK, 0);
+        fs.readSync(fd, tail, 0, CHUNK, stat.size - CHUNK);
+        fs.closeSync(fd);
+        hash.update(head);
+        hash.update(tail);
+        const sizeBuf = Buffer.alloc(8);
+        sizeBuf.writeDoubleBE(stat.size);
+        hash.update(sizeBuf);
       }
+      update.run(hash.digest('hex'), row.id);
     } catch {}
   }
   console.log(`Backfilled hash for ${unhashed.length} existing files`);

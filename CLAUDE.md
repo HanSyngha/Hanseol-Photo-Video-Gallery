@@ -62,7 +62,8 @@ For multi-step tasks, state a brief plan:
 
 ## Project: 땅콩땅콩땅땅콩콩
 
-가족/친구 단위(5~20명) 사진/영상 공유 웹 서비스. Synology DS920+ NAS에서 Docker로 운영.
+가족/친구 단위(5~20명) 사진/영상 공유 웹 서비스. Synology DS720+ NAS에서 Docker로 운영.
+서비스명: 땅콩땅콩땅콩콩땅
 
 ### Tech Stack
 
@@ -72,7 +73,7 @@ For multi-step tasks, state a brief plan:
 - **Image Processing**: Sharp (libvips) - 300px WebP thumbnails
 - **Video Thumbnails**: ffmpeg
 - **Auth**: Kakao/Naver OAuth -> JWT
-- **Deployment**: Docker Compose, single container, port 2230
+- **Deployment**: Docker Compose, single container, port 2280
 
 ### Architecture
 
@@ -111,13 +112,43 @@ src/                 # React frontend
 - 커서 기반 페이지네이션 (offset 사용 금지)
 - 업로드: 클라이언트 순차 전송 -> 서버 FIFO 큐 처리
 - 미디어 서빙: Range Request 지원 필수
-- 갤러리: react-virtuoso 가상 스크롤
+- 갤러리: IntersectionObserver 지연 로딩 + 날짜별 그룹핑
 - 라이트박스: progressive loading (썸네일 blur -> 원본)
 - 삭제 권한: 본인 미디어 + master는 전체 삭제 가능
 
 ### DB Tables
 
-users, media, views, downloads, likes, comments (상세 스키마는 PLAN.md 참조)
+users, media (hash 컬럼 포함), views, downloads, likes, comments, push_subscriptions
+
+### NAS 접속
+
+```bash
+# SSH
+ssh -i ~/.ssh/nas_key -p 2222 syngha_han@syngha.synology.me
+
+# 프로젝트 경로
+/volume1/docker/peanut/
+
+# Docker 명령 (PATH 필요)
+export PATH=/usr/local/bin:$PATH
+docker compose build
+docker compose down && docker compose up -d
+docker logs peanut-peanut-1
+```
+
+### 배포 플로우
+
+```bash
+# 로컬에서 빌드
+npx vite build && npx tsx scripts/build-server.ts && cp 땅땅로고.png 땅땅로고.ico dist/public/
+
+# NAS로 전송
+tar czf /tmp/peanut.tar.gz --exclude=node_modules --exclude=dist --exclude=data --exclude=.git --exclude=.env .
+scp -O -i ~/.ssh/nas_key -P 2222 /tmp/peanut.tar.gz syngha_han@syngha.synology.me:/volume1/docker/peanut/
+
+# NAS에서 빌드 & 재시작
+ssh ... "cd /volume1/docker/peanut && tar xzf peanut.tar.gz && rm peanut.tar.gz && export PATH=/usr/local/bin:\$PATH && docker compose build && docker compose down && docker compose up -d"
+```
 
 ### Commands
 

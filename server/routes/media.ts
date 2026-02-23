@@ -101,38 +101,28 @@ export function registerMediaRoutes(app: FastifyInstance) {
     const filename = uuidv4() + ext;
     const filePath = path.join(DATA_DIR, 'originals', filename);
 
+    app.log.info({ originalName: data.filename, mimeType, type }, 'Upload started');
+
     // 파일 저장 (pipeline으로 안전하게 스트림 처리)
     await pipeline(data.file, fs.createWriteStream(filePath));
 
-    // SHA-256 해시로 중복 탐지
-    const fileHash = await new Promise<string>((resolve, reject) => {
-      const hash = crypto.createHash('sha256');
-      const stream = fs.createReadStream(filePath);
-      stream.on('data', (chunk) => hash.update(chunk));
-      stream.on('end', () => resolve(hash.digest('hex')));
-      stream.on('error', reject);
-    });
+    const stat = fs.statSync(filePath);
+    app.log.info({ originalName: data.filename, size: stat.size, filename }, 'File saved');
+
+    // 빠른 해시: 첫 4MB + 마지막 4MB + 파일 크기 (클라이언트와 동일 방식)
+    const fileHash = await computeQuickHash(filePath, stat.size);
+    app.log.info({ originalName: data.filename, hash: fileHash.slice(0, 12) }, 'Hash computed');
 
     const existing = db.prepare('SELECT id FROM media WHERE hash = ?').get(fileHash) as any;
     if (existing) {
-      // 중복 — 업로드된 파일 삭제
       fs.unlinkSync(filePath);
+      app.log.info({ originalName: data.filename, existingId: existing.id }, 'Duplicate skipped');
       return { ok: true, duplicate: true, existingId: existing.id };
     }
 
-    const stat = fs.statSync(filePath);
     const uploaderId = (request as any).user.userId;
-
-    // 큐에 추가
-    enqueue({
-      filename,
-      originalName: data.filename,
-      mimeType,
-      type,
-      size: stat.size,
-      uploaderId,
-      hash: fileHash,
-    });
+    enqueue({ filename, originalName: data.filename, mimeType, type, size: stat.size, uploaderId, hash: fileHash });
+    app.log.info({ originalName: data.filename, uploaderId, filename }, 'Enqueued for processing');
 
     return { ok: true, filename };
   });
@@ -232,3 +222,29 @@ export function registerMediaRoutes(app: FastifyInstance) {
   });
 }
 
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
+
+async function computeQuickHash(filePath: string, fileSize: number): Promise<string> {
+  const hash = crypto.createHash('sha256');
+
+  if (fileSize <= CHUNK_SIZE) {
+    // 작은 파일: 전체 해시
+    const data = fs.readFileSync(filePath);
+    hash.update(data);
+  } else {
+    // 큰 파일: head 4MB + tail 4MB + 파일 크기
+    const fd = fs.openSync(filePath, 'r');
+    const head = Buffer.alloc(CHUNK_SIZE);
+    const tail = Buffer.alloc(CHUNK_SIZE);
+    fs.readSync(fd, head, 0, CHUNK_SIZE, 0);
+    fs.readSync(fd, tail, 0, CHUNK_SIZE, fileSize - CHUNK_SIZE);
+    fs.closeSync(fd);
+    hash.update(head);
+    hash.update(tail);
+    const sizeBuf = Buffer.alloc(8);
+    sizeBuf.writeDoubleBE(fileSize);
+    hash.update(sizeBuf);
+  }
+
+  return hash.digest('hex');
+}

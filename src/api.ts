@@ -110,10 +110,24 @@ export const api = {
     }),
 
   hashFile: async (file: File): Promise<string> => {
-    const buffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    // 청크 단위로 해시 계산 (대용량 파일 메모리 절약)
+    const CHUNK = 4 * 1024 * 1024; // 4MB
+    if (file.size <= CHUNK) {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // 큰 파일: 첫 4MB + 마지막 4MB + 파일 크기로 빠른 해시
+    const head = await file.slice(0, CHUNK).arrayBuffer();
+    const tail = await file.slice(-CHUNK).arrayBuffer();
+    const sizeBuf = new ArrayBuffer(8);
+    new DataView(sizeBuf).setFloat64(0, file.size);
+    const combined = new Uint8Array(head.byteLength + tail.byteLength + 8);
+    combined.set(new Uint8Array(head), 0);
+    combined.set(new Uint8Array(tail), head.byteLength);
+    combined.set(new Uint8Array(sizeBuf), head.byteLength + tail.byteLength);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
   },
 
   deleteMedia: (id: number) => request<{ ok: boolean }>(`/media/${id}`, { method: 'DELETE' }),
