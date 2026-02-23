@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { MediaItem, User } from '../api';
 import { api } from '../api';
 import YarlLightbox, { type Slide } from 'yet-another-react-lightbox';
@@ -48,6 +48,8 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
   const item = items[index];
   const slides = toSlides(items);
   const viewedRef = useRef<Set<number>>(new Set());
+  const mediaSectionRef = useRef<HTMLDivElement>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
 
   // 조회 기록
   useEffect(() => {
@@ -56,6 +58,29 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
       api.recordView(item.id).catch(() => {});
     }
   }, [item.id]);
+
+  // 비디오 로딩 감지
+  useEffect(() => {
+    if (item.type !== 'video') { setVideoLoading(false); return; }
+    setVideoLoading(true);
+
+    const section = mediaSectionRef.current;
+    if (!section) return;
+
+    let cancelled = false;
+    const check = () => {
+      if (cancelled) return;
+      const video = section.querySelector('video');
+      if (!video) { requestAnimationFrame(check); return; }
+
+      const onReady = () => { if (!cancelled) setVideoLoading(false); };
+      if (video.readyState >= 3) { setVideoLoading(false); return; }
+      video.addEventListener('canplay', onReady, { once: true });
+      return () => video.removeEventListener('canplay', onReady);
+    };
+    const cleanup = check();
+    return () => { cancelled = true; cleanup?.(); };
+  }, [item.id, item.type]);
 
   // body 스크롤 방지
   useEffect(() => {
@@ -90,7 +115,13 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
 
       <div className={styles.content}>
         {/* 미디어 영역 — YARL Inline */}
-        <div className={styles.mediaSection}>
+        <div className={styles.mediaSection} ref={mediaSectionRef}>
+          {videoLoading && (
+            <div className={styles.videoLoadingOverlay}>
+              <div className={styles.videoLoadingSpinner} />
+              <span>영상 불러오는 중...</span>
+            </div>
+          )}
           <button onClick={onClose} className={styles.closeBtn}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />

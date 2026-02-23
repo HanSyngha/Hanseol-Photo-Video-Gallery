@@ -35,6 +35,35 @@
   overflow: hidden;
 }
 
+/* 비디오 로딩 오버레이 */
+.videoLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.videoLoadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .closeBtn {
   position: absolute;
   top: max(env(safe-area-inset-top, 8px), 12px);
