@@ -76,8 +76,11 @@ export default function UploadModal({ uploadQueue, onClose }: Props) {
                   <div className={styles.fileSize}>{formatSize(f.file.size)}</div>
                   <div className={styles.fileStatus}>
                     {f.status === 'uploading' && (
-                      <div className={styles.progressBar}>
-                        <div className={styles.progressFill} style={{ width: `${f.progress}%` }} />
+                      <div className={styles.progressWrap}>
+                        <div className={styles.progressBar}>
+                          <div className={styles.progressFill} style={{ width: `${f.progress}%` }} />
+                        </div>
+                        <span className={styles.progressPct}>{f.progress}%</span>
                       </div>
                     )}
                     {f.status === 'done' && <span className={styles.done}>완료</span>}

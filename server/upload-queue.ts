@@ -30,8 +30,8 @@ async function processNext() {
       : await processVideo(item.filename);
 
     db.prepare(`
-      INSERT INTO media (uploaderId, filename, originalName, mimeType, type, size, width, height, duration)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO media (uploaderId, filename, originalName, mimeType, type, size, width, height, duration, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       item.uploaderId,
       item.filename,
@@ -42,6 +42,7 @@ async function processNext() {
       result.width ?? null,
       result.height ?? null,
       result.duration ?? null,
+      result.takenAt ?? new Date().toISOString().replace('T', ' ').slice(0, 19),
     );
 
     // 업로더 이름 조회 후 다른 사용자에게 알림

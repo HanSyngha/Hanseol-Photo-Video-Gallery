@@ -76,6 +76,6 @@ function cleanupOrphanFiles() {
 
 setInterval(cleanupOrphanFiles, 30 * 60 * 1000);
 
-const port = parseInt(process.env.PORT || '2230');
+const port = parseInt(process.env.PORT || '2280');
 await app.listen({ port, host: '0.0.0.0' });
 console.log(`Server running on port ${port}`);

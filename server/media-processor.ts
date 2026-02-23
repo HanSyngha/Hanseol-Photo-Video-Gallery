@@ -7,10 +7,22 @@ import fs from 'fs';
 const execFileAsync = promisify(execFile);
 const DATA_DIR = path.resolve('data');
 
-interface ProcessResult {
+export interface ProcessResult {
   width?: number;
   height?: number;
   duration?: number;
+  takenAt?: string; // EXIF/메타데이터 촬영 시간 (ISO string)
+}
+
+function parseExifDate(exifDate: string | undefined): string | undefined {
+  if (!exifDate) return undefined;
+  // EXIF 형식: "2024:01:15 14:30:00" → ISO
+  const match = exifDate.match(/(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return undefined;
+  const [, y, mo, d, h, mi, s] = match;
+  const date = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}`);
+  if (isNaN(date.getTime())) return undefined;
+  return date.toISOString().replace('T', ' ').slice(0, 19);
 }
 
 export async function processImage(filename: string): Promise<ProcessResult> {
@@ -25,9 +37,24 @@ export async function processImage(filename: string): Promise<ProcessResult> {
     .webp({ quality: 80 })
     .toFile(thumbPath);
 
+  // EXIF 촬영 날짜 추출
+  const exif = metadata.exif;
+  let takenAt: string | undefined;
+  if (exif) {
+    try {
+      const exifStr = exif.toString('utf8');
+      // DateTimeOriginal 또는 DateTime 패턴 찾기
+      const dateMatch = exifStr.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+      if (dateMatch) {
+        takenAt = parseExifDate(dateMatch[0]);
+      }
+    } catch {}
+  }
+
   return {
     width: metadata.width,
     height: metadata.height,
+    takenAt,
   };
 }
 
@@ -35,10 +62,10 @@ export async function processVideo(filename: string): Promise<ProcessResult> {
   const originalPath = path.join(DATA_DIR, 'originals', filename);
   const thumbPath = path.join(DATA_DIR, 'thumbnails', filename + '.webp');
 
-  // ffprobe로 메타데이터 추출
   let width: number | undefined;
   let height: number | undefined;
   let duration: number | undefined;
+  let takenAt: string | undefined;
 
   try {
     const { stdout } = await execFileAsync('ffprobe', [
@@ -56,6 +83,16 @@ export async function processVideo(filename: string): Promise<ProcessResult> {
     }
     if (probe.format?.duration) {
       duration = parseFloat(probe.format.duration);
+    }
+
+    // 영상 촬영 날짜: format.tags.creation_time
+    const creationTime = probe.format?.tags?.creation_time
+      || videoStream?.tags?.creation_time;
+    if (creationTime) {
+      const date = new Date(creationTime);
+      if (!isNaN(date.getTime())) {
+        takenAt = date.toISOString().replace('T', ' ').slice(0, 19);
+      }
     }
   } catch {
     // ffprobe 실패해도 계속 진행
@@ -79,5 +116,5 @@ export async function processVideo(filename: string): Promise<ProcessResult> {
     if (fs.existsSync(tmpFrame)) fs.unlinkSync(tmpFrame);
   }
 
-  return { width, height, duration };
+  return { width, height, duration, takenAt };
 }
