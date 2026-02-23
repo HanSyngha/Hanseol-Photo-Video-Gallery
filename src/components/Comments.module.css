@@ -1,6 +1,7 @@
 .comments {
-  border-top: 1px solid var(--color-border-light);
-  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .label {
@@ -9,48 +10,48 @@
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .list {
-  max-height: 300px;
+  flex: 1;
   overflow-y: auto;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .comment {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--color-border-light);
+  padding: 8px 0;
 }
 
-.comment:last-child {
-  border-bottom: none;
+.comment + .comment {
+  border-top: 1px solid var(--color-border-light);
 }
 
 .commentHeader {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 3px;
+  gap: 6px;
+  margin-bottom: 2px;
 }
 
 .commentName {
   font-size: 13px;
   font-weight: 600;
+  color: var(--color-text);
 }
 
 .commentTime {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-tertiary);
 }
 
 .deleteBtn {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-tertiary);
   margin-left: auto;
   padding: 2px 6px;
   border-radius: 4px;
-  transition: color var(--transition), background var(--transition);
+  transition: all 0.15s;
 }
 
 .deleteBtn:hover {
@@ -59,25 +60,29 @@
 }
 
 .commentText {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
   color: var(--color-text);
+  word-break: break-word;
 }
 
 .inputWrap {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .input {
   flex: 1;
-  padding: 9px 14px;
+  padding: 8px 12px;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 100px;
   background: var(--color-bg);
   outline: none;
-  font-size: 14px;
-  transition: border-color var(--transition);
+  font-size: 13px;
+  transition: border-color 0.15s;
+  min-width: 0;
 }
 
 .input:focus {
@@ -85,13 +90,14 @@
 }
 
 .sendBtn {
-  padding: 9px 18px;
+  padding: 8px 16px;
   background: var(--color-primary);
   color: #fff;
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: 100px;
+  font-size: 12px;
   font-weight: 600;
-  transition: background var(--transition), transform 0.15s;
+  transition: opacity 0.15s, transform 0.1s;
+  flex-shrink: 0;
 }
 
 .sendBtn:active:not(:disabled) {
