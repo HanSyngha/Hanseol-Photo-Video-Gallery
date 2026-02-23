@@ -13,24 +13,9 @@ interface Props {
 }
 
 function formatDateHeader(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diff = Math.floor((today.getTime() - target.getTime()) / 86400000);
-
-  if (diff === 0) return '오늘';
-  if (diff === 1) return '어제';
-  if (diff < 7) return `${diff}일 전`;
-
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-
-  if (date.getFullYear() === now.getFullYear()) {
-    return `${month}월 ${day}일 ${weekday}요일`;
-  }
-  return `${date.getFullYear()}년 ${month}월 ${day}일`;
+  // dateStr format: "YYYY-MM-DD HH:MM:SS" (KST)
+  const [y, m, d] = dateStr.slice(0, 10).split('-');
+  return `${y.slice(2)}.${m}.${d}`;
 }
 
 function getDateKey(dateStr: string): string {

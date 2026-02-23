@@ -71,7 +71,7 @@ async function processNext() {
       result.height ?? null,
       result.duration ?? null,
       item.hash,
-      result.takenAt ?? new Date().toISOString().replace('T', ' ').slice(0, 19),
+      result.takenAt ?? new Date(Date.now() + 9 * 3600000).toISOString().replace('T', ' ').slice(0, 19),
     );
 
     console.log(`[Queue] DB inserted: ${item.originalName} | remaining: ${queue.length}`);

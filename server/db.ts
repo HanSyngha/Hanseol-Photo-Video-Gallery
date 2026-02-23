@@ -25,7 +25,7 @@ db.exec(`
     name TEXT NOT NULL,
     profileImage TEXT,
     role TEXT DEFAULT 'member',
-    createdAt TEXT DEFAULT (datetime('now')),
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours')),
     UNIQUE(provider, providerId)
   );
 
@@ -41,14 +41,14 @@ db.exec(`
     height INTEGER,
     duration REAL,
     hash TEXT,
-    createdAt TEXT DEFAULT (datetime('now'))
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours'))
   );
 
   CREATE TABLE IF NOT EXISTS views (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mediaId INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
     userId INTEGER NOT NULL REFERENCES users(id),
-    createdAt TEXT DEFAULT (datetime('now')),
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours')),
     UNIQUE(mediaId, userId)
   );
 
@@ -56,7 +56,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mediaId INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
     userId INTEGER NOT NULL REFERENCES users(id),
-    createdAt TEXT DEFAULT (datetime('now')),
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours')),
     UNIQUE(mediaId, userId)
   );
 
@@ -64,7 +64,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mediaId INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
     userId INTEGER NOT NULL REFERENCES users(id),
-    createdAt TEXT DEFAULT (datetime('now')),
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours')),
     UNIQUE(mediaId, userId)
   );
 
@@ -73,7 +73,7 @@ db.exec(`
     mediaId INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
     userId INTEGER NOT NULL REFERENCES users(id),
     content TEXT NOT NULL,
-    createdAt TEXT DEFAULT (datetime('now'))
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours'))
   );
 
   CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -81,7 +81,7 @@ db.exec(`
     userId INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     endpoint TEXT NOT NULL UNIQUE,
     keys TEXT NOT NULL,
-    createdAt TEXT DEFAULT (datetime('now'))
+    createdAt TEXT DEFAULT (datetime('now', '+9 hours'))
   );
 
   CREATE INDEX IF NOT EXISTS idx_media_created ON media(createdAt DESC);

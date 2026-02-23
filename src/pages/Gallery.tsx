@@ -3,6 +3,7 @@ import { api, type User, type MediaItem } from '../api';
 import { useUploadQueue } from '../hooks/useUploadQueue';
 import { useProcessingStatus } from '../hooks/useProcessingStatus';
 import { usePinchColumns } from '../hooks/usePinchColumns';
+import { usePushNotification } from '../hooks/usePushNotification';
 import MediaGrid from '../components/MediaGrid';
 import Lightbox from '../components/Lightbox';
 import UploadModal from '../components/UploadModal';
@@ -46,6 +47,7 @@ export default function Gallery({ user, onLogout }: Props) {
 
   const uploadQueue = useUploadQueue(handleUploaded);
   const { columns, bind: bindPinch } = usePinchColumns();
+  const { pushState, togglePush } = usePushNotification(true);
   const gridRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -146,9 +148,20 @@ export default function Gallery({ user, onLogout }: Props) {
               }
             </button>
             {showMenu && (
-              <div className={styles.menu} onClick={() => setShowMenu(false)}>
+              <div className={styles.menu}>
                 <div className={styles.menuName}>{user.name}</div>
-                <button onClick={onLogout}>로그아웃</button>
+                {pushState !== 'unsupported' && (
+                  <button onClick={(e) => { e.stopPropagation(); togglePush(); }} className={styles.menuItem}>
+                    <span>알림</span>
+                    <span className={`${styles.toggle} ${pushState === 'on' ? styles.toggleOn : ''}`}>
+                      <span className={styles.toggleKnob} />
+                    </span>
+                  </button>
+                )}
+                {pushState === 'denied' && (
+                  <div className={styles.menuHint}>브라우저 설정에서 알림을 허용해주세요</div>
+                )}
+                <button onClick={() => { setShowMenu(false); onLogout(); }}>로그아웃</button>
               </div>
             )}
           </div>

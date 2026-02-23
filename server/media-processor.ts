@@ -91,7 +91,9 @@ export async function processVideo(filename: string): Promise<ProcessResult> {
     if (creationTime) {
       const date = new Date(creationTime);
       if (!isNaN(date.getTime())) {
-        takenAt = date.toISOString().replace('T', ' ').slice(0, 19);
+        // KST로 변환 (+9시간)
+        const kst = new Date(date.getTime() + 9 * 3600000);
+        takenAt = kst.toISOString().replace('T', ' ').slice(0, 19);
       }
     }
   } catch {

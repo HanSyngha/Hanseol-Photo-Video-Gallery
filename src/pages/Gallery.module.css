@@ -139,6 +139,47 @@
   background: var(--color-primary-bg);
 }
 
+.menuItem {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menuHint {
+  padding: 4px 14px 8px;
+  font-size: 11px;
+  color: #dc2626;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  background: var(--color-border);
+  border-radius: 10px;
+  padding: 2px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggleOn {
+  background: var(--color-primary);
+}
+
+.toggleKnob {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.toggleOn .toggleKnob {
+  transform: translateX(16px);
+}
+
 .main {
   padding: 8px 16px 32px;
   max-width: 1440px;

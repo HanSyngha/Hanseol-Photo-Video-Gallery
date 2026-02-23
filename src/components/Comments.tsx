@@ -43,7 +43,7 @@ export default function Comments({ mediaId, user }: Props) {
             <div className={styles.commentHeader}>
               <span className={styles.commentName}>{c.name}</span>
               <span className={styles.commentTime}>
-                {new Date(c.createdAt).toLocaleDateString('ko-KR')}
+                {c.createdAt.slice(2, 10).replace(/-/g, '.')}
               </span>
               {(c.userId === user.id || user.role === 'master') && (
                 <button className={styles.deleteBtn} onClick={() => handleDelete(c.id)}>삭제</button>

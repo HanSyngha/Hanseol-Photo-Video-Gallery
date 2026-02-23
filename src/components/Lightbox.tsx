@@ -121,7 +121,7 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
             </div>
             <div>
               <div className={styles.uploaderName}>{item.uploaderName}</div>
-              <div className={styles.uploadTime}>{new Date(item.createdAt).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}</div>
+              <div className={styles.uploadTime}>{item.createdAt.slice(2, 10).replace(/-/g, '.')}</div>
             </div>
           </div>
 
