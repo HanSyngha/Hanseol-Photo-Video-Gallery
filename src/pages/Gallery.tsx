@@ -85,7 +85,7 @@ export default function Gallery({ user, onLogout }: Props) {
   }, []);
 
   const openUpload = useCallback(() => {
-    openUpload();
+    setShowUpload(true);
     history.pushState({ modal: 'upload' }, '');
   }, []);
 
