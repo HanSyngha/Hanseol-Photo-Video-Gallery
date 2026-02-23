@@ -4,8 +4,8 @@ export default function Login() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <img src="/땅땅로고.png" alt="땅콩땅콩땅땅콩콩" className={styles.logo} />
-        <h1 className={styles.title}>땅콩땅콩땅땅콩콩</h1>
+        <img src="/땅땅로고.png" alt="땅콩땅콩땅콩콩땅" className={styles.logo} />
+        <h1 className={styles.title}>땅콩땅콩땅콩콩땅</h1>
         <p className={styles.subtitle}>우리끼리 사진 공유</p>
 
         <div className={styles.buttons}>

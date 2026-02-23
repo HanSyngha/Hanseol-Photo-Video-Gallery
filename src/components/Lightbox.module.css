@@ -244,8 +244,9 @@
 
   .mediaSection {
     flex: none;
-    height: 50vh;
-    height: 50dvh;
+    height: 40vh;
+    height: 40dvh;
+    min-height: 200px;
   }
 
   .sidePanel {
@@ -253,14 +254,20 @@
     flex: 1;
     border-left: none;
     border-top: 1px solid var(--color-border-light);
+    overflow-y: auto;
   }
 
   .navBtn { width: 34px; height: 34px; }
   .navPrev { left: 8px; }
   .navNext { right: 8px; }
 
-  .uploaderRow { padding: 14px 16px 12px; }
-  .actionBar { padding: 10px 16px; }
-  .peopleSection { padding: 10px 16px; }
-  .commentsWrap { padding: 12px 16px; }
+  .uploaderRow { padding: 12px 16px 10px; }
+  .uploaderAvatar { width: 32px; height: 32px; }
+  .uploaderAvatar span { font-size: 13px; }
+  .uploaderName { font-size: 13px; }
+  .actionBar { padding: 8px 16px; flex-wrap: wrap; }
+  .likeBtn { padding: 6px 12px; font-size: 13px; }
+  .actionBtn { padding: 6px 12px; font-size: 12px; }
+  .peopleSection { padding: 8px 16px; }
+  .commentsWrap { padding: 10px 16px; }
 }

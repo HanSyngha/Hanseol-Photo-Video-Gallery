@@ -4,7 +4,7 @@ import { api } from '../api';
 export interface UploadFile {
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'done' | 'error';
+  status: 'pending' | 'uploading' | 'done' | 'duplicate' | 'error';
 }
 
 export function useUploadQueue(onUploaded: () => void) {
@@ -32,9 +32,13 @@ export function useUploadQueue(onUploaded: () => void) {
     api.uploadFile(fileToUpload, (pct) => {
       setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, progress: pct } : f));
     })
-      .then(() => {
-        setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'done', progress: 100 } : f));
-        onUploaded();
+      .then((res) => {
+        if (res.duplicate) {
+          setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'duplicate', progress: 100 } : f));
+        } else {
+          setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'done', progress: 100 } : f));
+          onUploaded();
+        }
       })
       .catch(() => {
         setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'error' } : f));
@@ -43,7 +47,7 @@ export function useUploadQueue(onUploaded: () => void) {
         uploadingRef.current = false;
         setFiles(prev => [...prev]);
       });
-  }, [files.length, files.filter(f => f.status === 'done' || f.status === 'error').length]);
+  }, [files.length, files.filter(f => f.status === 'done' || f.status === 'error' || f.status === 'duplicate').length]);
 
   // beforeunload
   useEffect(() => {
@@ -55,13 +59,14 @@ export function useUploadQueue(onUploaded: () => void) {
   }, [files]);
 
   const clearDone = useCallback(() => {
-    setFiles(prev => prev.filter(f => f.status !== 'done' && f.status !== 'error'));
+    setFiles(prev => prev.filter(f => f.status !== 'done' && f.status !== 'error' && f.status !== 'duplicate'));
   }, []);
 
   const doneCount = files.filter(f => f.status === 'done').length;
+  const dupCount = files.filter(f => f.status === 'duplicate').length;
   const totalCount = files.length;
   const activeCount = files.filter(f => f.status === 'uploading' || f.status === 'pending').length;
   const currentFile = files.find(f => f.status === 'uploading');
 
-  return { files, addFiles, clearDone, doneCount, totalCount, activeCount, currentFile };
+  return { files, addFiles, clearDone, doneCount, dupCount, totalCount, activeCount, currentFile };
 }

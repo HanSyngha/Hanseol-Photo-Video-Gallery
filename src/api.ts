@@ -78,7 +78,7 @@ export const api = {
   getMediaDetail: (id: number) => request<MediaItem>(`/media/${id}`),
 
   uploadFile: (file: File, onProgress?: (pct: number) => void) => {
-    return new Promise<{ ok: boolean; filename: string }>((resolve, reject) => {
+    return new Promise<{ ok: boolean; filename?: string; duplicate?: boolean }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${BASE}/media/upload`);
       xhr.withCredentials = true;

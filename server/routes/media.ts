@@ -4,6 +4,8 @@ import { enqueue } from '../upload-queue.js';
 import db from '../db.js';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
+import { pipeline } from 'stream/promises';
 import { v4 as uuidv4 } from 'uuid';
 
 const DATA_DIR = path.resolve('data');
@@ -91,14 +93,24 @@ export function registerMediaRoutes(app: FastifyInstance) {
     const filename = uuidv4() + ext;
     const filePath = path.join(DATA_DIR, 'originals', filename);
 
-    // 파일 저장 (스트림으로 - 대용량 영상도 메모리 안 터짐)
-    const writeStream = fs.createWriteStream(filePath);
-    await new Promise<void>((resolve, reject) => {
-      data.file.pipe(writeStream);
-      data.file.on('error', reject);
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
+    // 파일 저장 (pipeline으로 안전하게 스트림 처리)
+    await pipeline(data.file, fs.createWriteStream(filePath));
+
+    // SHA-256 해시로 중복 탐지
+    const fileHash = await new Promise<string>((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      const stream = fs.createReadStream(filePath);
+      stream.on('data', (chunk) => hash.update(chunk));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
     });
+
+    const existing = db.prepare('SELECT id FROM media WHERE hash = ?').get(fileHash) as any;
+    if (existing) {
+      // 중복 — 업로드된 파일 삭제
+      fs.unlinkSync(filePath);
+      return { ok: true, duplicate: true, existingId: existing.id };
+    }
 
     const stat = fs.statSync(filePath);
     const uploaderId = (request as any).user.userId;
@@ -111,6 +123,7 @@ export function registerMediaRoutes(app: FastifyInstance) {
       type,
       size: stat.size,
       uploaderId,
+      hash: fileHash,
     });
 
     return { ok: true, filename };

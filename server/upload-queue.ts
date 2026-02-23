@@ -9,6 +9,7 @@ interface QueueItem {
   type: 'image' | 'video';
   size: number;
   uploaderId: number;
+  hash: string;
 }
 
 const queue: QueueItem[] = [];
@@ -30,8 +31,8 @@ async function processNext() {
       : await processVideo(item.filename);
 
     db.prepare(`
-      INSERT INTO media (uploaderId, filename, originalName, mimeType, type, size, width, height, duration, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO media (uploaderId, filename, originalName, mimeType, type, size, width, height, duration, hash, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       item.uploaderId,
       item.filename,
@@ -42,6 +43,7 @@ async function processNext() {
       result.width ?? null,
       result.height ?? null,
       result.duration ?? null,
+      item.hash,
       result.takenAt ?? new Date().toISOString().replace('T', ' ').slice(0, 19),
     );
 
@@ -49,7 +51,7 @@ async function processNext() {
     const uploader = db.prepare('SELECT name FROM users WHERE id = ?').get(item.uploaderId) as any;
     const uploaderName = uploader?.name || '누군가';
     const typeLabel = item.type === 'image' ? '사진' : '영상';
-    sendPushToOthers(item.uploaderId, '땅콩땅콩땅땅콩콩', `${uploaderName}님이 ${typeLabel}을 올렸어요!`);
+    sendPushToOthers(item.uploaderId, '땅콩땅콩땅콩콩땅', `${uploaderName}님이 ${typeLabel}을 올렸어요!`);
   } catch (err) {
     console.error('Processing failed:', item.filename, err);
   }

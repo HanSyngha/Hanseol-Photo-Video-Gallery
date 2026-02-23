@@ -40,6 +40,7 @@ db.exec(`
     width INTEGER,
     height INTEGER,
     duration REAL,
+    hash TEXT,
     createdAt TEXT DEFAULT (datetime('now'))
   );
 
@@ -91,5 +92,32 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_comments_media ON comments(mediaId);
   CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(userId);
 `);
+
+// 마이그레이션: 기존 DB에 hash 컬럼 추가
+try {
+  db.exec('ALTER TABLE media ADD COLUMN hash TEXT');
+} catch {
+  // 이미 존재하면 무시
+}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_media_hash ON media(hash)'); } catch {}
+
+// 기존 파일들의 해시를 채워넣기
+import crypto from 'crypto';
+const unhashed = db.prepare('SELECT id, filename FROM media WHERE hash IS NULL').all() as { id: number; filename: string }[];
+if (unhashed.length > 0) {
+  const update = db.prepare('UPDATE media SET hash = ? WHERE id = ?');
+  for (const row of unhashed) {
+    try {
+      const filePath = path.join(DATA_DIR, 'originals', row.filename);
+      if (fs.existsSync(filePath)) {
+        const hash = crypto.createHash('sha256');
+        const data = fs.readFileSync(filePath);
+        hash.update(data);
+        update.run(hash.digest('hex'), row.id);
+      }
+    } catch {}
+  }
+  console.log(`Backfilled hash for ${unhashed.length} existing files`);
+}
 
 export default db;

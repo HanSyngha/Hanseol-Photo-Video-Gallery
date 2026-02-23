@@ -84,6 +84,7 @@ export default function UploadModal({ uploadQueue, onClose }: Props) {
                       </div>
                     )}
                     {f.status === 'done' && <span className={styles.done}>완료</span>}
+                    {f.status === 'duplicate' && <span className={styles.duplicate}>중복</span>}
                     {f.status === 'error' && <span className={styles.error}>실패</span>}
                     {f.status === 'pending' && <span className={styles.pending}>대기</span>}
                   </div>

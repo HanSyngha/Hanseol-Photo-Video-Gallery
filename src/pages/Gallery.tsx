@@ -78,7 +78,7 @@ export default function Gallery({ user, onLogout }: Props) {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <img src="/땅땅로고.png" alt="" className={styles.headerLogo} />
-          <span className={styles.headerTitle}>땅콩땅콩땅땅콩콩</span>
+          <span className={styles.headerTitle}>땅콩땅콩땅콩콩땅</span>
         </div>
         <div className={styles.headerRight}>
           <button className={styles.uploadBtn} onClick={() => setShowUpload(true)}>
