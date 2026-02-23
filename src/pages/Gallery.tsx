@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { api, type User, type MediaItem } from '../api';
 import { useUploadQueue } from '../hooks/useUploadQueue';
+import { useProcessingStatus } from '../hooks/useProcessingStatus';
+import { usePinchColumns } from '../hooks/usePinchColumns';
 import MediaGrid from '../components/MediaGrid';
 import Lightbox from '../components/Lightbox';
 import UploadModal from '../components/UploadModal';
@@ -15,7 +17,7 @@ type SortMode = 'recent' | 'likes';
 
 export default function Gallery({ user, onLogout }: Props) {
   const [items, setItems] = useState<MediaItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -23,7 +25,7 @@ export default function Gallery({ user, onLogout }: Props) {
   const [sort, setSort] = useState<SortMode>('recent');
   const initialLoad = useRef(false);
 
-  const loadMore = useCallback(async (cursor?: number | null, sortMode?: SortMode) => {
+  const loadMore = useCallback(async (cursor?: string | null, sortMode?: SortMode) => {
     const s = sortMode ?? sort;
     const data = await api.getMedia(cursor, s);
     if (cursor) {
@@ -34,17 +36,36 @@ export default function Gallery({ user, onLogout }: Props) {
     setNextCursor(data.nextCursor);
   }, [sort]);
 
+  const [pollingActive, setPollingActive] = useState(false);
+  const processing = useProcessingStatus(pollingActive);
+
   const handleUploaded = useCallback(() => {
+    setPollingActive(true);
     setTimeout(() => loadMore(null, sort), 1500);
   }, [loadMore, sort]);
 
   const uploadQueue = useUploadQueue(handleUploaded);
+  const { columns, bind: bindPinch } = usePinchColumns();
+  const gridRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (initialLoad.current) return;
     initialLoad.current = true;
     loadMore().finally(() => setLoading(false));
   }, [loadMore]);
+
+  // 핀치 줌 바인딩
+  useEffect(() => {
+    return bindPinch(gridRef.current);
+  }, [bindPinch]);
+
+  // 처리 완료 시 갤러리 리로드 + 폴링 중지
+  useEffect(() => {
+    if (processing.justFinished) {
+      loadMore(null, sort);
+      setPollingActive(false);
+    }
+  }, [processing.justFinished, loadMore, sort]);
 
   const handleSortChange = useCallback((newSort: SortMode) => {
     if (newSort === sort) return;
@@ -134,7 +155,7 @@ export default function Gallery({ user, onLogout }: Props) {
         </div>
       </header>
 
-      <main className={styles.main}>
+      <main className={styles.main} ref={gridRef as React.RefObject<HTMLElement>}>
         {!loading && items.length > 0 && (
           <div className={styles.sortBar}>
             <button
@@ -155,6 +176,29 @@ export default function Gallery({ user, onLogout }: Props) {
           </div>
         )}
 
+        {processing.isProcessing && (
+          <div className={styles.processingBanner}>
+            <div className={styles.processingSpinner} />
+            <span>
+              {processing.current
+                ? `'${processing.current.originalName}' 처리 중...`
+                : '처리 대기 중...'}
+              {processing.queueCount > 0 && ` (대기 ${processing.queueCount}개)`}
+            </span>
+          </div>
+        )}
+
+        {processing.recentErrors.map(err => (
+          <div key={err.filename} className={styles.errorBanner}>
+            <span>'{err.originalName}' 처리 실패</span>
+            <button className={styles.errorDismiss} onClick={() => processing.dismissError(err.filename)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+
         {loading ? (
           <div className={styles.loading}>불러오는 중...</div>
         ) : items.length === 0 ? (
@@ -169,6 +213,7 @@ export default function Gallery({ user, onLogout }: Props) {
             onLoadMore={handleLoadMore}
             hasMore={!!nextCursor}
             sort={sort}
+            columns={columns}
           />
         )}
       </main>

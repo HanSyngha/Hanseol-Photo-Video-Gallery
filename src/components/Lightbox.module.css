@@ -26,14 +26,11 @@
   height: 100%;
 }
 
-/* ─── 미디어 영역 ─── */
+/* ─── 미디어 영역 (YARL Inline) ─── */
 .mediaSection {
   flex: 1;
   position: relative;
   background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-width: 0;
   overflow: hidden;
 }
@@ -57,66 +54,16 @@
 
 .closeBtn:hover { background: rgba(0, 0, 0, 0.5); }
 
-.navBtn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: clamp(34px, 4vw, 44px);
-  height: clamp(34px, 4vw, 44px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 10;
-  transition: background 0.15s, transform 0.1s;
+/* YARL 스타일 오버라이드 */
+.mediaSection :global(.yarl__root),
+.mediaSection :global(.yarl__lightbox--inline-custom) {
+  --yarl__color_backdrop: transparent;
+  background: transparent;
 }
 
-.navBtn:hover { background: rgba(0, 0, 0, 0.5); }
-.navBtn:active { transform: translateY(-50%) scale(0.9); }
-.navPrev { left: clamp(8px, 1vw, 16px); }
-.navNext { right: clamp(8px, 1vw, 16px); }
-
-.mediaWrap {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(4px, 1vw, 16px);
-}
-
-.imageContainer {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.blurBg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: blur(30px) brightness(0.6);
-  transform: scale(1.2);
-  opacity: 0.5;
-  transition: opacity 0.4s;
-  pointer-events: none;
-}
-
-.blurBg.hidden { opacity: 0; }
-
-.fullImage {
-  position: relative;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+.mediaSection :global(.yarl__toolbar) {
+  /* 닫기 버튼은 우리 것 사용, YARL 툴바 좌측 여백 확보 */
+  padding-left: 56px;
 }
 
 /* ─── 사이드 패널 ─── */
@@ -246,7 +193,6 @@
 
   .mediaSection {
     flex: none;
-    /* 이미지 비율에 상관없이 안정적 높이 */
     height: 44%;
     min-height: 180px;
   }

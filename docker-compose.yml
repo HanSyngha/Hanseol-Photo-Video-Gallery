@@ -3,7 +3,7 @@ services:
   peanut:
     build: .
     ports:
-      - "2280:2280"
+      - "127.0.0.1:12280:2280"
     volumes:
       - ./data:/app/data
     environment:

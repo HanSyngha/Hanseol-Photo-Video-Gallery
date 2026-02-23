@@ -22,7 +22,8 @@
     "jsonwebtoken": "^9.0.2",
     "sharp": "^0.33.5",
     "uuid": "^11.0.5",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "yet-another-react-lightbox": "^3.29.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

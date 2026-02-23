@@ -116,6 +116,24 @@ src/                 # React frontend
 - 라이트박스: progressive loading (썸네일 blur -> 원본)
 - 삭제 권한: 본인 미디어 + master는 전체 삭제 가능
 
+### OAuth 설정
+
+- **Kakao**: 개발자콘솔 앱 이름 "Hanseol Dashboard" (ID 1378312)
+  - Client ID(REST API KEY) + Redirect URI + 클라이언트 시크릿: 앱 설정 > 앱 > 플랫폼 키 > REST API 키 클릭
+- **Naver**: 네이버 개발자센터
+- `.env`의 `BASE_URL`이 OAuth 콜백 URL의 기반 (현재 `https://syngha.synology.me:2280`)
+
+### HTTPS 구성
+
+- Synology DSM 내장 Reverse Proxy 사용 (Control Panel > Login Portal > Advanced > Reverse Proxy)
+- 규칙: `https://*:2280` → `http://localhost:12280`
+- Docker는 `127.0.0.1:12280:2280`으로 바인딩 (외부 직접 접근 차단)
+- **Reverse Proxy는 반드시 켜둬야 함** (SSL 처리 담당, 끄면 HTTPS 안 됨)
+- SSL 인증서: Let's Encrypt (`syngha.synology.me`), 90일 자동갱신
+  - 발급/관리: Control Panel > Security > Certificate
+  - Reverse Proxy에 할당: Certificate > Settings > `*:2280` → `syngha.synology.me` 인증서 선택
+- crypto.subtle (클라이언트 해시) 사용을 위해 HTTPS 필수
+
 ### DB Tables
 
 users, media (hash 컬럼 포함), views, downloads, likes, comments, push_subscriptions
@@ -139,16 +157,23 @@ docker logs peanut-peanut-1
 ### 배포 플로우
 
 ```bash
-# 로컬에서 빌드
-npx vite build && npx tsx scripts/build-server.ts && cp 땅땅로고.png 땅땅로고.ico dist/public/
+# 1. NAS로 rsync (변경분만 전송)
+# 주의: -e 옵션 안에 반드시 --rsync-path도 지정해야 함 (Synology rsync 호환 이슈)
+# 단순 rsync -e "ssh -i ... -p 2222"는 "Permission denied" 에러 발생 가능
+# → --rsync-path=/usr/bin/rsync 추가 또는 ssh -v로 디버깅
+rsync -avz --rsync-path=/usr/bin/rsync -e "ssh -i ~/.ssh/nas_key -p 2222" --exclude=node_modules --exclude=dist --exclude=data --exclude=.git --exclude=.env ./ syngha_han@syngha.synology.me:/volume1/docker/peanut/
 
-# NAS로 전송
-tar czf /tmp/peanut.tar.gz --exclude=node_modules --exclude=dist --exclude=data --exclude=.git --exclude=.env .
-scp -O -i ~/.ssh/nas_key -P 2222 /tmp/peanut.tar.gz syngha_han@syngha.synology.me:/volume1/docker/peanut/
-
-# NAS에서 빌드 & 재시작
-ssh ... "cd /volume1/docker/peanut && tar xzf peanut.tar.gz && rm peanut.tar.gz && export PATH=/usr/local/bin:\$PATH && docker compose build && docker compose down && docker compose up -d"
+# 2. NAS에서 빌드 & 재시작
+ssh -i ~/.ssh/nas_key -p 2222 syngha_han@syngha.synology.me "cd /volume1/docker/peanut && export PATH=/usr/local/bin:\$PATH && docker compose build && docker compose down && docker compose up -d"
 ```
+
+#### rsync "Permission denied" 트러블슈팅
+
+Synology NAS에서 rsync가 `Permission denied`로 실패하는 경우:
+1. SSH 단독 테스트: `ssh -i ~/.ssh/nas_key -p 2222 syngha_han@syngha.synology.me "echo ok"` → 이게 되면 키는 정상
+2. rsync에 `--rsync-path=/usr/bin/rsync` 추가 (NAS의 rsync 경로 명시)
+3. 그래도 안 되면 `-e "ssh -v -i ..."` 로 verbose 로그 확인
+4. NAS DSM > Control Panel > Terminal & SNMP > rsync 서비스가 켜져있는지 확인 (SSH rsync와 별개)
 
 ### Commands
 

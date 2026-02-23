@@ -12,8 +12,27 @@ interface QueueItem {
   hash: string;
 }
 
+interface RecentResult {
+  filename: string;
+  originalName: string;
+  status: 'done' | 'error';
+  error?: string;
+  elapsed: number;
+}
+
 const queue: QueueItem[] = [];
 let processing = false;
+let current: { filename: string; originalName: string; startedAt: number } | null = null;
+const recentResults: RecentResult[] = [];
+const MAX_RECENT = 20;
+
+export function getQueueStatus() {
+  return {
+    current,
+    queue: queue.map(q => ({ filename: q.filename, originalName: q.originalName })),
+    recentResults,
+  };
+}
 
 export function enqueue(item: QueueItem) {
   queue.push(item);
@@ -27,6 +46,7 @@ async function processNext() {
 
   const item = queue.shift()!;
   const start = Date.now();
+  current = { filename: item.filename, originalName: item.originalName, startedAt: start };
   console.log(`[Queue] Processing: ${item.originalName} (${item.type})`);
 
   try {
@@ -34,8 +54,8 @@ async function processNext() {
       ? await processImage(item.filename)
       : await processVideo(item.filename);
 
-    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`[Queue] Processed: ${item.originalName} in ${elapsed}s | ${result.width}x${result.height} | takenAt: ${result.takenAt || 'none'}`);
+    const elapsedSec = (Date.now() - start) / 1000;
+    console.log(`[Queue] Processed: ${item.originalName} in ${elapsedSec.toFixed(1)}s | ${result.width}x${result.height} | takenAt: ${result.takenAt || 'none'}`);
 
     db.prepare(`
       INSERT INTO media (uploaderId, filename, originalName, mimeType, type, size, width, height, duration, hash, createdAt)
@@ -56,14 +76,22 @@ async function processNext() {
 
     console.log(`[Queue] DB inserted: ${item.originalName} | remaining: ${queue.length}`);
 
+    recentResults.push({ filename: item.filename, originalName: item.originalName, status: 'done', elapsed: elapsedSec });
+    if (recentResults.length > MAX_RECENT) recentResults.shift();
+
     const uploader = db.prepare('SELECT name FROM users WHERE id = ?').get(item.uploaderId) as any;
     const uploaderName = uploader?.name || '누군가';
     const typeLabel = item.type === 'image' ? '사진' : '영상';
     sendPushToOthers(item.uploaderId, '땅콩땅콩땅콩콩땅', `${uploaderName}님이 ${typeLabel}을 올렸어요!`);
   } catch (err) {
+    const elapsed = (Date.now() - start) / 1000;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    recentResults.push({ filename: item.filename, originalName: item.originalName, status: 'error', error: errMsg, elapsed });
+    if (recentResults.length > MAX_RECENT) recentResults.shift();
     console.error(`[Queue] FAILED: ${item.originalName}`, err);
   }
 
+  current = null;
   processing = false;
   processNext();
 }

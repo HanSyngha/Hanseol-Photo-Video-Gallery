@@ -1,7 +1,13 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import type { MediaItem, User } from '../api';
 import { api } from '../api';
-import VideoPlayer from './VideoPlayer';
+import YarlLightbox, { type Slide } from 'yet-another-react-lightbox';
+import Inline from 'yet-another-react-lightbox/plugins/inline';
+import Video from 'yet-another-react-lightbox/plugins/video';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import Counter from 'yet-another-react-lightbox/plugins/counter';
+import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen';
+import 'yet-another-react-lightbox/styles.css';
 import Comments from './Comments';
 import styles from './Lightbox.module.css';
 
@@ -15,42 +21,56 @@ interface Props {
   onLikeToggle: (id: number, liked: boolean) => void;
 }
 
+function toSlides(items: MediaItem[]): Slide[] {
+  return items.map(item => {
+    if (item.type === 'video') {
+      return {
+        type: 'video' as const,
+        poster: api.thumbUrl(item.id),
+        width: item.width ?? undefined,
+        height: item.height ?? undefined,
+        autoPlay: true,
+        controls: true,
+        playsInline: true,
+        sources: [{ src: api.fileUrl(item.id), type: item.mimeType }],
+      };
+    }
+    return {
+      src: api.fileUrl(item.id),
+      alt: item.originalName,
+      width: item.width ?? undefined,
+      height: item.height ?? undefined,
+    };
+  });
+}
+
 export default function Lightbox({ items, index, user, onClose, onNavigate, onDelete, onLikeToggle }: Props) {
   const item = items[index];
-  const [highResLoaded, setHighResLoaded] = useState(false);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const slides = toSlides(items);
+  const viewedRef = useRef<Set<number>>(new Set());
 
-  useEffect(() => { api.recordView(item.id).catch(() => {}); }, [item.id]);
-  useEffect(() => { setHighResLoaded(false); }, [item.id]);
-
+  // 조회 기록
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft' && index > 0) onNavigate(index - 1);
-      if (e.key === 'ArrowRight' && index < items.length - 1) onNavigate(index + 1);
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [index, items.length, onClose, onNavigate]);
+    if (!viewedRef.current.has(item.id)) {
+      viewedRef.current.add(item.id);
+      api.recordView(item.id).catch(() => {});
+    }
+  }, [item.id]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStart.current) return;
-    const dx = e.changedTouches[0].clientX - touchStart.current.x;
-    const dy = e.changedTouches[0].clientY - touchStart.current.y;
-    touchStart.current = null;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-    if (dx < 0 && index < items.length - 1) onNavigate(index + 1);
-    if (dx > 0 && index > 0) onNavigate(index - 1);
-  }, [index, items.length, onNavigate]);
-
+  // body 스크롤 방지
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  // Escape로 닫기 (YARL inline은 기본 close 미지원)
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   const handleLike = useCallback(async () => {
     const result = await api.toggleLike(item.id);
@@ -69,47 +89,29 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
       <div className={styles.backdrop} onClick={onClose} />
 
       <div className={styles.content}>
-        {/* 미디어 영역 */}
+        {/* 미디어 영역 — YARL Inline */}
         <div className={styles.mediaSection}>
-          {/* 닫기 */}
           <button onClick={onClose} className={styles.closeBtn}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
 
-          {/* 네비게이션 */}
-          {index > 0 && (
-            <button className={`${styles.navBtn} ${styles.navPrev}`} onClick={() => onNavigate(index - 1)}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-          )}
-          {index < items.length - 1 && (
-            <button className={`${styles.navBtn} ${styles.navNext}`} onClick={() => onNavigate(index + 1)}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-          )}
-
-          {/* 미디어 */}
-          <div className={styles.mediaWrap} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-            {item.type === 'video' ? (
-              <VideoPlayer src={api.fileUrl(item.id)} />
-            ) : (
-              <div className={styles.imageContainer}>
-                <img src={api.thumbUrl(item.id)} className={`${styles.blurBg} ${highResLoaded ? styles.hidden : ''}`} alt="" />
-                <img src={api.fileUrl(item.id)} className={styles.fullImage} alt={item.originalName} onLoad={() => setHighResLoaded(true)} />
-              </div>
-            )}
-          </div>
+          <YarlLightbox
+            plugins={[Inline, Video, Zoom, Counter, Fullscreen]}
+            slides={slides}
+            index={index}
+            inline={{ style: { width: '100%', height: '100%', background: 'transparent' } }}
+            on={{ view: ({ index: i }) => onNavigate(i) }}
+            carousel={{ finite: true }}
+            video={{ autoPlay: true, controls: true, playsInline: true }}
+            zoom={{ maxZoomPixelRatio: 3, doubleClickMaxStops: 2 }}
+            className="yarl__lightbox--inline-custom"
+          />
         </div>
 
-        {/* 사이드 패널 - 항상 표시 */}
+        {/* 사이드 패널 */}
         <div className={styles.sidePanel}>
-          {/* 업로더 정보 */}
           <div className={styles.uploaderRow}>
             <div className={styles.uploaderAvatar}>
               {item.uploaderImage
@@ -123,7 +125,6 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
             </div>
           </div>
 
-          {/* 액션 바 */}
           <div className={styles.actionBar}>
             <button className={`${styles.likeBtn} ${item.liked ? styles.liked : ''}`} onClick={handleLike}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill={item.liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -147,7 +148,6 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
             )}
           </div>
 
-          {/* 확인/다운로드 사람 */}
           <div className={styles.peopleSection}>
             {item.viewers.length > 0 && (
               <div className={styles.peopleRow}>
@@ -163,7 +163,6 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
             )}
           </div>
 
-          {/* 댓글 */}
           <div className={styles.commentsWrap}>
             <Comments mediaId={item.id} user={user} />
           </div>

@@ -5,6 +5,7 @@ export interface UploadFile {
   file: File;
   progress: number;
   status: 'pending' | 'hashing' | 'uploading' | 'done' | 'duplicate' | 'error';
+  retryCount: number;
 }
 
 export function useUploadQueue(onUploaded: () => void) {
@@ -14,7 +15,7 @@ export function useUploadQueue(onUploaded: () => void) {
   const addFiles = useCallback((newFiles: FileList | File[]) => {
     const items = Array.from(newFiles)
       .filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
-      .map(file => ({ file, progress: 0, status: 'pending' as const }));
+      .map(file => ({ file, progress: 0, status: 'pending' as const, retryCount: 0 }));
     if (items.length === 0) return;
     setFiles(prev => [...prev, ...items]);
   }, []);
@@ -55,7 +56,14 @@ export function useUploadQueue(onUploaded: () => void) {
         }
       })
       .catch(() => {
-        setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'error' } : f));
+        setFiles(prev => prev.map((f, i) => {
+          if (i !== pendingIdx) return f;
+          // 자동 재시도 2회
+          if (f.retryCount < 2) {
+            return { ...f, status: 'pending', progress: 0, retryCount: f.retryCount + 1 };
+          }
+          return { ...f, status: 'error' };
+        }));
       })
       .finally(() => {
         uploadingRef.current = false;
@@ -72,6 +80,14 @@ export function useUploadQueue(onUploaded: () => void) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [files]);
 
+  const retryFile = useCallback((index: number) => {
+    setFiles(prev => prev.map((f, i) =>
+      i === index && f.status === 'error'
+        ? { ...f, status: 'pending' as const, progress: 0, retryCount: 0 }
+        : f
+    ));
+  }, []);
+
   const clearDone = useCallback(() => {
     setFiles(prev => prev.filter(f => f.status !== 'done' && f.status !== 'error' && f.status !== 'duplicate'));
   }, []);
@@ -82,5 +98,5 @@ export function useUploadQueue(onUploaded: () => void) {
   const activeCount = files.filter(f => f.status === 'uploading' || f.status === 'pending' || f.status === 'hashing').length;
   const currentFile = files.find(f => f.status === 'uploading');
 
-  return { files, addFiles, clearDone, doneCount, dupCount, totalCount, activeCount, currentFile };
+  return { files, addFiles, clearDone, retryFile, doneCount, dupCount, totalCount, activeCount, currentFile };
 }

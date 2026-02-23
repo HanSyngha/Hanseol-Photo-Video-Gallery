@@ -65,12 +65,12 @@ export const api = {
   getMe: () => request<User>('/auth/me', { skipAuthRedirect: true }),
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 
-  getMedia: (cursor?: number | null, sort?: string) => {
+  getMedia: (cursor?: string | null, sort?: string) => {
     const params = new URLSearchParams();
-    if (cursor) params.set('cursor', String(cursor));
+    if (cursor) params.set('cursor', cursor);
     if (sort) params.set('sort', sort);
     const qs = params.toString();
-    return request<{ items: MediaItem[]; nextCursor: number | null }>(
+    return request<{ items: MediaItem[]; nextCursor: string | null }>(
       `/media${qs ? `?${qs}` : ''}`,
     );
   },
@@ -129,6 +129,12 @@ export const api = {
     const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
     return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
   },
+
+  getProcessingStatus: () => request<{
+    current: { filename: string; originalName: string; startedAt: number } | null;
+    queue: { filename: string; originalName: string }[];
+    recentResults: { filename: string; originalName: string; status: 'done' | 'error'; error?: string; elapsed: number }[];
+  }>('/media/processing'),
 
   deleteMedia: (id: number) => request<{ ok: boolean }>(`/media/${id}`, { method: 'DELETE' }),
 

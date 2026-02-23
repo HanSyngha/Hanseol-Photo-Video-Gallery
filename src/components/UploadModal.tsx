@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function UploadModal({ uploadQueue, onClose }: Props) {
-  const { files, addFiles, activeCount } = uploadQueue;
+  const { files, addFiles, activeCount, retryFile } = uploadQueue;
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -86,7 +86,12 @@ export default function UploadModal({ uploadQueue, onClose }: Props) {
                     )}
                     {f.status === 'done' && <span className={styles.done}>완료</span>}
                     {f.status === 'duplicate' && <span className={styles.duplicate}>중복</span>}
-                    {f.status === 'error' && <span className={styles.error}>실패</span>}
+                    {f.status === 'error' && (
+                      <span className={styles.errorWrap}>
+                        <span className={styles.error}>실패</span>
+                        <button className={styles.retryBtn} onClick={() => retryFile(i)}>재시도</button>
+                      </span>
+                    )}
                     {f.status === 'pending' && <span className={styles.pending}>대기</span>}
                   </div>
                 </div>
@@ -96,8 +101,8 @@ export default function UploadModal({ uploadQueue, onClose }: Props) {
         )}
 
         {activeCount > 0 && (
-          <div className={styles.closeHint}>
-            모달을 닫아도 업로드는 계속됩니다
+          <div className={styles.uploadWarning}>
+            업로드가 끝날 때까지 화면을 끄지 마세요
           </div>
         )}
       </div>

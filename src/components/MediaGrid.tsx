@@ -9,6 +9,7 @@ interface Props {
   onLoadMore: () => void;
   hasMore: boolean;
   sort?: string;
+  columns?: number;
 }
 
 function formatDateHeader(dateStr: string): string {
@@ -42,7 +43,7 @@ interface DateGroup {
   items: { item: MediaItem; globalIndex: number }[];
 }
 
-export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sort }: Props) {
+export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sort, columns }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const groups = useMemo(() => {
@@ -69,11 +70,13 @@ export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sor
     return () => obs.disconnect();
   }, [hasMore, items.length]);
 
+  const gridStyle = columns ? { '--grid-cols': columns } as React.CSSProperties : undefined;
+
   // 좋아요순: 날짜 그룹 없이 flat 그리드
   if (sort === 'likes') {
     return (
       <div className={styles.container}>
-        <div className={styles.grid}>
+        <div className={styles.grid} style={gridStyle}>
           {items.map((item, idx) => (
             <MediaCard
               key={item.id}
@@ -98,7 +101,7 @@ export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sor
             <span className={styles.dateCount}>{group.items.length}장</span>
             <span className={styles.dateLine} />
           </div>
-          <div className={styles.grid}>
+          <div className={styles.grid} style={gridStyle}>
             {group.items.map(({ item, globalIndex }, i) => (
               <MediaCard
                 key={item.id}

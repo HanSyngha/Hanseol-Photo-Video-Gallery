@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { authenticate } from '../auth.js';
-import { enqueue } from '../upload-queue.js';
+import { enqueue, getQueueStatus } from '../upload-queue.js';
 import db from '../db.js';
 import path from 'path';
 import fs from 'fs';
@@ -36,9 +36,9 @@ export function registerMediaRoutes(app: FastifyInstance) {
       // 좋아요순: 전체 로드 (소규모 서비스)
       rows = db.prepare(baseQuery + ' ORDER BY likeCount DESC, m.id DESC').all(userId);
     } else if (cursor) {
-      rows = db.prepare(baseQuery + ' WHERE m.id < ? ORDER BY m.id DESC LIMIT ?').all(userId, parseInt(cursor), lim);
+      rows = db.prepare(baseQuery + ' WHERE m.createdAt < ? ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, cursor, lim);
     } else {
-      rows = db.prepare(baseQuery + ' ORDER BY m.id DESC LIMIT ?').all(userId, lim);
+      rows = db.prepare(baseQuery + ' ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, lim);
     }
 
     const items = rows.map(row => {
@@ -48,7 +48,7 @@ export function registerMediaRoutes(app: FastifyInstance) {
       return { ...rest, liked: !!row.liked, viewers, downloaders };
     });
 
-    const nextCursor = sort === 'likes' ? null : (rows.length === lim ? rows[rows.length - 1].id : null);
+    const nextCursor = sort === 'likes' ? null : (rows.length === lim ? rows[rows.length - 1].createdAt : null);
     return { items, nextCursor };
   });
 
@@ -86,6 +86,11 @@ export function registerMediaRoutes(app: FastifyInstance) {
     if (!hash) return { duplicate: false };
     const existing = db.prepare('SELECT id FROM media WHERE hash = ?').get(hash) as any;
     return { duplicate: !!existing, existingId: existing?.id ?? null };
+  });
+
+  // 처리 큐 상태
+  app.get('/api/media/processing', { preHandler: authenticate }, async () => {
+    return getQueueStatus();
   });
 
   // 업로드

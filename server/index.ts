@@ -16,7 +16,7 @@ const app = Fastify({ logger: true });
 // 플러그인 등록
 await app.register(fastifyCors, { origin: true, credentials: true });
 await app.register(fastifyCookie);
-await app.register(fastifyMultipart, { limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB
+await app.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 * 1024 } }); // 10GB
 
 // API 라우트 등록
 registerAuthRoutes(app);
