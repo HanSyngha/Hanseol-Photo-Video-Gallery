@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  peanut:
+    build: .
+    ports:
+      - "2230:2230"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
+      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - BASE_URL=${BASE_URL}
+    restart: always
