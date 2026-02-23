@@ -4,7 +4,7 @@ import { api } from '../api';
 export interface UploadFile {
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'done' | 'duplicate' | 'error';
+  status: 'pending' | 'hashing' | 'uploading' | 'done' | 'duplicate' | 'error';
 }
 
 export function useUploadQueue(onUploaded: () => void) {
@@ -19,20 +19,34 @@ export function useUploadQueue(onUploaded: () => void) {
     setFiles(prev => [...prev, ...items]);
   }, []);
 
-  // 순차 업로드
+  // 순차 처리: 해시 계산 → 중복 체크 → 업로드
   useEffect(() => {
     if (uploadingRef.current) return;
     const pendingIdx = files.findIndex(f => f.status === 'pending');
     if (pendingIdx === -1) return;
 
     uploadingRef.current = true;
-    setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'uploading' } : f));
-
     const fileToUpload = files[pendingIdx].file;
-    api.uploadFile(fileToUpload, (pct) => {
-      setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, progress: pct } : f));
-    })
-      .then((res) => {
+
+    // 1. 해시 계산 중 표시
+    setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'hashing' } : f));
+
+    api.hashFile(fileToUpload)
+      .then(async (hash) => {
+        // 2. 서버에 중복 확인
+        const check = await api.checkDuplicate(hash);
+        if (check.duplicate) {
+          setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'duplicate', progress: 100 } : f));
+          return;
+        }
+
+        // 3. 중복 아니면 업로드
+        setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'uploading' } : f));
+
+        const res = await api.uploadFile(fileToUpload, (pct) => {
+          setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, progress: pct } : f));
+        });
+
         if (res.duplicate) {
           setFiles(prev => prev.map((f, i) => i === pendingIdx ? { ...f, status: 'duplicate', progress: 100 } : f));
         } else {
@@ -51,7 +65,7 @@ export function useUploadQueue(onUploaded: () => void) {
 
   // beforeunload
   useEffect(() => {
-    const hasActive = files.some(f => f.status === 'uploading' || f.status === 'pending');
+    const hasActive = files.some(f => f.status === 'uploading' || f.status === 'pending' || f.status === 'hashing');
     if (!hasActive) return;
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
     window.addEventListener('beforeunload', handler);
@@ -65,7 +79,7 @@ export function useUploadQueue(onUploaded: () => void) {
   const doneCount = files.filter(f => f.status === 'done').length;
   const dupCount = files.filter(f => f.status === 'duplicate').length;
   const totalCount = files.length;
-  const activeCount = files.filter(f => f.status === 'uploading' || f.status === 'pending').length;
+  const activeCount = files.filter(f => f.status === 'uploading' || f.status === 'pending' || f.status === 'hashing').length;
   const currentFile = files.find(f => f.status === 'uploading');
 
   return { files, addFiles, clearDone, doneCount, dupCount, totalCount, activeCount, currentFile };

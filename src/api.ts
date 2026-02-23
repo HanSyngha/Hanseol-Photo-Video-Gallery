@@ -103,6 +103,19 @@ export const api = {
     });
   },
 
+  checkDuplicate: (hash: string) =>
+    request<{ duplicate: boolean; existingId: number | null }>('/media/check-duplicate', {
+      method: 'POST',
+      body: JSON.stringify({ hash }),
+    }),
+
+  hashFile: async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  },
+
   deleteMedia: (id: number) => request<{ ok: boolean }>(`/media/${id}`, { method: 'DELETE' }),
 
   recordView: (id: number) => request<{ ok: boolean }>(`/media/${id}/view`, { method: 'POST' }),

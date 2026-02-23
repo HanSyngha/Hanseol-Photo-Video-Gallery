@@ -80,6 +80,14 @@ export function registerMediaRoutes(app: FastifyInstance) {
     return { ...rest, liked: !!row.liked, viewers, downloaders };
   });
 
+  // 업로드 전 중복 체크 (해시)
+  app.post('/api/media/check-duplicate', { preHandler: authenticate }, async (request) => {
+    const { hash } = request.body as { hash: string };
+    if (!hash) return { duplicate: false };
+    const existing = db.prepare('SELECT id FROM media WHERE hash = ?').get(hash) as any;
+    return { duplicate: !!existing, existingId: existing?.id ?? null };
+  });
+
   // 업로드
   app.post('/api/media/upload', { preHandler: authenticate }, async (request, reply) => {
     const data = await request.file();

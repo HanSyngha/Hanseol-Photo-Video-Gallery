@@ -73,6 +73,36 @@ export default function Gallery({ user, onLogout }: Props) {
     );
   }, []);
 
+  // 뒤로가기로 라이트박스/모달 닫기
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+    history.pushState({ modal: 'lightbox' }, '');
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightboxIndex(null);
+    if (history.state?.modal === 'lightbox') history.back();
+  }, []);
+
+  const openUpload = useCallback(() => {
+    openUpload();
+    history.pushState({ modal: 'upload' }, '');
+  }, []);
+
+  const closeUpload = useCallback(() => {
+    setShowUpload(false);
+    if (history.state?.modal === 'upload') history.back();
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setLightboxIndex(null);
+      setShowUpload(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
@@ -81,7 +111,7 @@ export default function Gallery({ user, onLogout }: Props) {
           <span className={styles.headerTitle}>땅콩땅콩땅콩콩땅</span>
         </div>
         <div className={styles.headerRight}>
-          <button className={styles.uploadBtn} onClick={() => setShowUpload(true)}>
+          <button className={styles.uploadBtn} onClick={() => openUpload()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
@@ -130,12 +160,12 @@ export default function Gallery({ user, onLogout }: Props) {
         ) : items.length === 0 ? (
           <div className={styles.empty}>
             <p>아직 사진이 없어요</p>
-            <button onClick={() => setShowUpload(true)}>첫 사진 올리기</button>
+            <button onClick={() => openUpload()}>첫 사진 올리기</button>
           </div>
         ) : (
           <MediaGrid
             items={items}
-            onItemClick={setLightboxIndex}
+            onItemClick={openLightbox}
             onLoadMore={handleLoadMore}
             hasMore={!!nextCursor}
             sort={sort}
@@ -144,7 +174,7 @@ export default function Gallery({ user, onLogout }: Props) {
       </main>
 
       {/* 모바일 FAB */}
-      <button className={styles.fab} onClick={() => setShowUpload(true)}>
+      <button className={styles.fab} onClick={() => openUpload()}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
           <path d="M12 5v14M5 12h14" />
         </svg>
@@ -152,7 +182,7 @@ export default function Gallery({ user, onLogout }: Props) {
 
       {/* 업로드 진행 미니 토스트 (모달 닫은 후에도 표시) */}
       {!showUpload && uploadQueue.activeCount > 0 && (
-        <div className={styles.uploadToast} onClick={() => setShowUpload(true)}>
+        <div className={styles.uploadToast} onClick={() => openUpload()}>
           <div className={styles.toastSpinner} />
           <span>
             {uploadQueue.doneCount}/{uploadQueue.totalCount} 업로드 중...
@@ -170,7 +200,7 @@ export default function Gallery({ user, onLogout }: Props) {
           items={items}
           index={lightboxIndex}
           user={user}
-          onClose={() => setLightboxIndex(null)}
+          onClose={closeLightbox}
           onNavigate={setLightboxIndex}
           onDelete={handleDelete}
           onLikeToggle={handleLikeToggle}
@@ -180,7 +210,7 @@ export default function Gallery({ user, onLogout }: Props) {
       {showUpload && (
         <UploadModal
           uploadQueue={uploadQueue}
-          onClose={() => setShowUpload(false)}
+          onClose={closeUpload}
         />
       )}
     </div>

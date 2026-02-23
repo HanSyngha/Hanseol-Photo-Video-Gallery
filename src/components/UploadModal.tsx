@@ -75,6 +75,7 @@ export default function UploadModal({ uploadQueue, onClose }: Props) {
                   <div className={styles.fileName}>{f.file.name}</div>
                   <div className={styles.fileSize}>{formatSize(f.file.size)}</div>
                   <div className={styles.fileStatus}>
+                    {f.status === 'hashing' && <span className={styles.hashing}>확인 중</span>}
                     {f.status === 'uploading' && (
                       <div className={styles.progressWrap}>
                         <div className={styles.progressBar}>
