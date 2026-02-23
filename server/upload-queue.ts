@@ -1,4 +1,5 @@
 import { processImage, processVideo } from './media-processor.js';
+import { sendPushToOthers } from './push.js';
 import db from './db.js';
 
 interface QueueItem {
@@ -42,6 +43,12 @@ async function processNext() {
       result.height ?? null,
       result.duration ?? null,
     );
+
+    // 업로더 이름 조회 후 다른 사용자에게 알림
+    const uploader = db.prepare('SELECT name FROM users WHERE id = ?').get(item.uploaderId) as any;
+    const uploaderName = uploader?.name || '누군가';
+    const typeLabel = item.type === 'image' ? '사진' : '영상';
+    sendPushToOthers(item.uploaderId, '땅콩땅콩땅땅콩콩', `${uploaderName}님이 ${typeLabel}을 올렸어요!`);
   } catch (err) {
     console.error('Processing failed:', item.filename, err);
   }

@@ -1,0 +1,21 @@
+{
+  "name": "땅콩땅콩땅땅콩콩",
+  "short_name": "땅콩땅콩",
+  "description": "우리끼리 사진 공유",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f5ef",
+  "theme_color": "#946b2d",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

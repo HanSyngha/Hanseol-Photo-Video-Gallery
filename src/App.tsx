@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { usePushNotification } from './hooks/usePushNotification';
 import Login from './pages/Login';
 import Gallery from './pages/Gallery';
 
 export default function App() {
   const { user, loading, logout } = useAuth();
+  usePushNotification(!!user);
 
   if (loading) {
     return (

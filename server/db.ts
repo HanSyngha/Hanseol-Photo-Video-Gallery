@@ -75,12 +75,21 @@ db.exec(`
     createdAt TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    keys TEXT NOT NULL,
+    createdAt TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_media_created ON media(createdAt DESC);
   CREATE INDEX IF NOT EXISTS idx_media_uploader ON media(uploaderId);
   CREATE INDEX IF NOT EXISTS idx_views_media ON views(mediaId);
   CREATE INDEX IF NOT EXISTS idx_downloads_media ON downloads(mediaId);
   CREATE INDEX IF NOT EXISTS idx_likes_media ON likes(mediaId);
   CREATE INDEX IF NOT EXISTS idx_comments_media ON comments(mediaId);
+  CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(userId);
 `);
 
 export default db;

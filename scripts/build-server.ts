@@ -7,7 +7,7 @@ await build({
   target: 'node20',
   format: 'esm',
   outdir: 'dist/server',
-  external: ['better-sqlite3', 'sharp'],
+  external: ['better-sqlite3', 'sharp', 'web-push'],
   banner: {
     js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
   },
