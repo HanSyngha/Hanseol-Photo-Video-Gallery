@@ -16,13 +16,12 @@ export interface ProcessResult {
 
 function parseExifDate(exifDate: string | undefined): string | undefined {
   if (!exifDate) return undefined;
-  // EXIF 형식: "2024:01:15 14:30:00" → ISO
+  // EXIF 형식: "2024:01:15 14:30:00" → "2024-01-15 14:30:00"
+  // EXIF는 카메라 로컬시간(KST)이므로 변환 없이 그대로 포매팅
   const match = exifDate.match(/(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
   if (!match) return undefined;
   const [, y, mo, d, h, mi, s] = match;
-  const date = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}`);
-  if (isNaN(date.getTime())) return undefined;
-  return date.toISOString().replace('T', ' ').slice(0, 19);
+  return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
 }
 
 export async function processImage(filename: string): Promise<ProcessResult> {
