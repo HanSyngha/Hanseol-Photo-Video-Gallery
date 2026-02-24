@@ -4,6 +4,8 @@
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
+**CRITICAL: NAS 데이터 절대 삭제 금지.** `/data/originals`, `/data/thumbnails`, `peanut.db`를 삭제하거나 초기화하지 마라. 스키마 변경이 필요하면 마이그레이션으로 처리. 사용자가 명시적으로 요청하더라도 반드시 한 번 더 확인받아라.
+
 ### 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
