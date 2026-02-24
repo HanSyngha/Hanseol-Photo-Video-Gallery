@@ -7,6 +7,7 @@ import { usePushNotification } from '../hooks/usePushNotification';
 import MediaGrid from '../components/MediaGrid';
 import Lightbox from '../components/Lightbox';
 import UploadModal from '../components/UploadModal';
+import Admin from './Admin';
 import styles from './Gallery.module.css';
 
 interface Props {
@@ -23,6 +24,7 @@ export default function Gallery({ user, onLogout }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [sort, setSort] = useState<SortMode>('recent');
   const initialLoad = useRef(false);
 
@@ -161,6 +163,9 @@ export default function Gallery({ user, onLogout }: Props) {
                 {pushState === 'denied' && (
                   <div className={styles.menuHint}>브라우저 설정에서 알림을 허용해주세요</div>
                 )}
+                {user.role === 'master' && (
+                  <button onClick={() => { setShowMenu(false); setShowAdmin(true); }}>사용자 관리</button>
+                )}
                 <button onClick={() => { setShowMenu(false); onLogout(); }}>로그아웃</button>
               </div>
             )}
@@ -270,6 +275,12 @@ export default function Gallery({ user, onLogout }: Props) {
           uploadQueue={uploadQueue}
           onClose={closeUpload}
         />
+      )}
+
+      {showAdmin && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'var(--color-bg)' }}>
+          <Admin user={user} onBack={() => setShowAdmin(false)} />
+        </div>
       )}
     </div>
   );

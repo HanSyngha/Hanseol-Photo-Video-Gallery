@@ -101,6 +101,9 @@ try {
 }
 try { db.exec('CREATE INDEX IF NOT EXISTS idx_media_hash ON media(hash)'); } catch {}
 
+// 마이그레이션: users에 banned 컬럼 추가
+try { db.exec('ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0'); } catch {}
+
 // 기존 파일들의 해시를 채워넣기 (quick hash: head+tail+size)
 import crypto from 'crypto';
 const CHUNK = 4 * 1024 * 1024;

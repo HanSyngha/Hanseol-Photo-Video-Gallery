@@ -154,6 +154,8 @@ export const api = {
     request<{ ok: boolean }>(`/comments/${id}`, { method: 'DELETE' }),
 
   getUsers: () => request<User[]>('/users'),
+  banUser: (id: number, banned: boolean) =>
+    request<{ ok: boolean }>(`/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned }) }),
   deleteUser: (id: number) => request<{ ok: boolean }>(`/users/${id}`, { method: 'DELETE' }),
 
   thumbUrl: (id: number) => `${BASE}/media/${id}/thumb`,

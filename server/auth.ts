@@ -19,6 +19,12 @@ export function authenticate(request: FastifyRequest, reply: FastifyReply, done:
   }
   try {
     const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    // 차단된 유저 체크
+    const user = db.prepare('SELECT banned FROM users WHERE id = ?').get(payload.userId) as any;
+    if (user?.banned) {
+      reply.clearCookie('token', { path: '/' }).code(403).send({ error: 'Banned' });
+      return;
+    }
     (request as any).user = payload;
     done();
   } catch {
@@ -35,13 +41,14 @@ function upsertUser(provider: string, providerId: string, name: string, profileI
   const existing = db.prepare('SELECT id, role FROM users WHERE provider = ? AND providerId = ?').get(provider, providerId) as any;
 
   if (existing) {
-    db.prepare('UPDATE users SET name = ?, profileImage = ? WHERE id = ?').run(name, profileImage, existing.id);
-    return { id: existing.id, role: existing.role };
+    const MASTER_NAMES = ['황하람', '한승하'];
+    const updatedRole = MASTER_NAMES.includes(name) ? 'master' : existing.role;
+    db.prepare('UPDATE users SET name = ?, profileImage = ?, role = ? WHERE id = ?').run(name, profileImage, updatedRole, existing.id);
+    return { id: existing.id, role: updatedRole };
   }
 
-  // 첫 번째 가입자 = master
-  const userCount = (db.prepare('SELECT COUNT(*) as cnt FROM users').get() as any).cnt;
-  const role = userCount === 0 ? 'master' : 'member';
+  const MASTER_NAMES = ['황하람', '한승하'];
+  const role = MASTER_NAMES.includes(name) ? 'master' : 'member';
 
   const result = db.prepare('INSERT INTO users (provider, providerId, name, profileImage, role) VALUES (?, ?, ?, ?, ?)').run(provider, providerId, name, profileImage, role);
   return { id: result.lastInsertRowid as number, role };

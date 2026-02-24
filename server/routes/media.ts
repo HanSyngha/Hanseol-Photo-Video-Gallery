@@ -15,7 +15,7 @@ export function registerMediaRoutes(app: FastifyInstance) {
   app.get('/api/media', { preHandler: authenticate }, async (request) => {
     const { cursor, limit = '20', sort = 'recent' } = request.query as { cursor?: string; limit?: string; sort?: string };
     const lim = Math.min(parseInt(limit), 50);
-    const userId = (request as any).user.userId;
+    const { userId, role } = (request as any).user;
 
     const baseQuery = `
       SELECT m.*,
@@ -41,9 +41,10 @@ export function registerMediaRoutes(app: FastifyInstance) {
       rows = db.prepare(baseQuery + ' ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, lim);
     }
 
+    const isMaster = role === 'master';
     const items = rows.map(row => {
-      const viewers = row.viewersJson ? JSON.parse(row.viewersJson).filter((v: any) => v.userId !== null) : [];
-      const downloaders = row.downloadersJson ? JSON.parse(row.downloadersJson).filter((d: any) => d.userId !== null) : [];
+      const viewers = isMaster && row.viewersJson ? JSON.parse(row.viewersJson).filter((v: any) => v.userId !== null) : [];
+      const downloaders = isMaster && row.downloadersJson ? JSON.parse(row.downloadersJson).filter((d: any) => d.userId !== null) : [];
       const { viewersJson, downloadersJson, ...rest } = row;
       return { ...rest, liked: !!row.liked, viewers, downloaders };
     });
@@ -55,7 +56,7 @@ export function registerMediaRoutes(app: FastifyInstance) {
   // 단일 미디어 상세
   app.get('/api/media/:id', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const userId = (request as any).user.userId;
+    const { userId, role } = (request as any).user;
 
     const row = db.prepare(`
       SELECT m.*,
@@ -74,8 +75,9 @@ export function registerMediaRoutes(app: FastifyInstance) {
 
     if (!row) return reply.code(404).send({ error: 'Not found' });
 
-    const viewers = row.viewersJson ? JSON.parse(row.viewersJson).filter((v: any) => v.userId !== null) : [];
-    const downloaders = row.downloadersJson ? JSON.parse(row.downloadersJson).filter((d: any) => d.userId !== null) : [];
+    const isMaster = role === 'master';
+    const viewers = isMaster && row.viewersJson ? JSON.parse(row.viewersJson).filter((v: any) => v.userId !== null) : [];
+    const downloaders = isMaster && row.downloadersJson ? JSON.parse(row.downloadersJson).filter((d: any) => d.userId !== null) : [];
     const { viewersJson, downloadersJson, ...rest } = row;
     return { ...rest, liked: !!row.liked, viewers, downloaders };
   });

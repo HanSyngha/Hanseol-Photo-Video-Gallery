@@ -136,6 +136,7 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
             on={{ view: ({ index: i }) => onNavigate(i) }}
             carousel={{ finite: true }}
             video={{ autoPlay: true, controls: true, playsInline: true }}
+            fullscreen={{ auto: false }}
             zoom={{ maxZoomPixelRatio: 3, doubleClickMaxStops: 2 }}
             className="yarl__lightbox--inline-custom"
           />
