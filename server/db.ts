@@ -201,6 +201,18 @@ if (unhashed.length > 0) {
   console.log(`Backfilled hash for ${unhashed.length} existing files`);
 }
 
+// 웹 세션 refresh token(기기 세션). family와 같은 모델 — 평문은 쿠키에만, 서버는 SHA-256 해시만 저장.
+db.exec(`CREATE TABLE IF NOT EXISTS device_sessions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tokenHash   TEXT NOT NULL UNIQUE,
+  deviceName  TEXT,
+  createdAt   TEXT DEFAULT (datetime('now', '+9 hours')),
+  lastUsedAt  TEXT,
+  revokedAt   TEXT
+)`);
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_device_sessions_user ON device_sessions(userId)'); } catch {}
+
 // 땅콩페밀리 DB 연결 (볼륨 마운트 시)
 const FAMILY_DATA_DIR = process.env.FAMILY_DATA_DIR || '';
 let familyDb: InstanceType<typeof Database> | null = null;

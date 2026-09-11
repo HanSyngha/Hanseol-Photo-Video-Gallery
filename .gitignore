@@ -11,3 +11,6 @@ data/
 /*.jpeg
 /*.ico
 *:Zone.Identifier
+
+# Claude Code 워크트리/세션 파일 (배포·커밋 대상 아님)
+.claude/
