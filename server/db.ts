@@ -229,3 +229,22 @@ if (FAMILY_DATA_DIR) {
 
 export { familyDb };
 export default db;
+
+// ── 설이 키우기 (게임) ─────────────────────────────────────────────────────
+// 유저당 세이브 1개(세이브 스커밍 방지). 게임 상태 전체는 state JSON에 담고,
+// 리더보드에 쓰는 값만 컬럼으로 빼서 랭킹 쿼리가 JSON을 안 뒤지게 한다.
+db.exec(`CREATE TABLE IF NOT EXISTS game_saves (
+  userId      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  state       TEXT NOT NULL,
+  day         INTEGER NOT NULL DEFAULT 1,
+  albumCount  INTEGER NOT NULL DEFAULT 0,
+  score       INTEGER NOT NULL DEFAULT 0,
+  bestStreak  INTEGER NOT NULL DEFAULT 0,
+  finished    INTEGER NOT NULL DEFAULT 0,
+  grade       TEXT,
+  clearedAt   TEXT,
+  createdAt   TEXT DEFAULT (datetime('now', '+9 hours')),
+  updatedAt   TEXT DEFAULT (datetime('now', '+9 hours'))
+)`);
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_game_album ON game_saves(albumCount DESC)'); } catch {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_game_streak ON game_saves(bestStreak DESC)'); } catch {}

@@ -9,6 +9,7 @@ import { registerAuthRoutes } from './auth.js';
 import { registerMediaRoutes } from './routes/media.js';
 import { registerInteractionRoutes } from './routes/interaction.js';
 import { registerUserRoutes } from './routes/user.js';
+import { registerGameRoutes } from './routes/game.js';
 import { registerPushRoutes } from './push.js';
 
 const app = Fastify({ logger: true });
@@ -35,6 +36,7 @@ registerAuthRoutes(app);
 registerMediaRoutes(app);
 registerInteractionRoutes(app);
 registerUserRoutes(app);
+registerGameRoutes(app);
 registerPushRoutes(app);
 
 // SPA 정적 파일 서빙 (production)

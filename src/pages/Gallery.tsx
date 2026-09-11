@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { api, type User, type MediaItem, type GalleryEvent } from '../api';
 import { useUploadQueue } from '../hooks/useUploadQueue';
@@ -36,6 +37,7 @@ function getDaysSinceBirth() {
 }
 
 export default function Gallery({ user, onLogout }: Props) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -379,6 +381,16 @@ export default function Gallery({ user, onLogout }: Props) {
           <span className={styles.headerTitle}>땅콩땅콩땅콩콩땅</span>
         </div>
         <div className={styles.headerRight}>
+          {!selectMode && (
+            <button
+              className={styles.selectBtn}
+              onClick={() => navigate('/game')}
+              title="설이 키우기"
+              aria-label="설이 키우기"
+            >
+              <span style={{ fontSize: 17, lineHeight: 1 }}>👶</span>
+            </button>
+          )}
           {!selectMode && items.length > 0 && (
             <button
               className={`${styles.selectBtn} ${showShortsLaunch ? styles.shortsLaunchBtn : ''}`}

@@ -121,6 +121,18 @@ export const api = {
   },
 
   getMediaDetail: (id: number) => request<MediaItem>(`/media/${id}`),
+
+  // ── 설이 키우기 ──────────────────────────────────────────────────────────
+  getGameSave: () => request<{ save: any | null }>('/game/save'),
+  putGameSave: (body: any) => request<{ ok: boolean }>('/game/save', { method: 'PUT', body: JSON.stringify(body) }),
+  resetGameSave: () => request<{ ok: boolean }>('/game/save', { method: 'DELETE' }),
+  getGameLeaderboard: () => request<{ album: any[]; score: any[]; streak: any[] }>('/game/leaderboard'),
+  getGameDay: (day: number) => request<{
+    day: number; date: string; total: number;
+    slots: Record<string, { id: number; filename: string; type: string; createdAt: string }[]>;
+    event: { id: number; title: string; color: string; dayIndex: number; startDate: string; endDate: string } | null;
+  }>(`/game/day/${day}`),
+  getGameTimeline: () => request<{ birth: string; totalDays: number; days: Record<string, { n: number; v: number }>; events: any[] }>('/game/timeline'),
   getMediaIds: () => request<{ items: { id: number; filename: string; type: string; createdAt: string }[] }>('/media/ids'),
 
   uploadFile: (file: File, onProgress?: (pct: number) => void) => {

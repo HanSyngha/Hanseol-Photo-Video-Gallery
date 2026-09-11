@@ -1,7 +1,11 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
 import Gallery from './pages/Gallery';
+
+// 게임은 갤러리만 쓰는 사람이 번들을 안 받게 분리한다.
+const Game = lazy(() => import('./pages/Game'));
 
 // 페밀리앱(콩땅 탭, ?from=family)에서 들어왔는지 1회 캡처 — 라우팅으로 쿼리 사라지기 전에.
 try {
@@ -26,7 +30,17 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/game" element={user ? <GameRoute user={user} /> : <Navigate to="/login" />} />
       <Route path="/*" element={user ? <Gallery user={user} onLogout={logout} /> : <Navigate to="/login" />} />
     </Routes>
+  );
+}
+
+function GameRoute({ user }: { user: any }) {
+  const nav = useNavigate();
+  return (
+    <Suspense fallback={null}>
+      <Game user={user} onClose={() => nav('/')} />
+    </Suspense>
   );
 }
