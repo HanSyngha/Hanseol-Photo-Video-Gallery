@@ -3,6 +3,13 @@ import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
 import Gallery from './pages/Gallery';
 
+// 페밀리앱(콩땅 탭, ?from=family)에서 들어왔는지 1회 캡처 — 라우팅으로 쿼리 사라지기 전에.
+try {
+  if (new URLSearchParams(window.location.search).get('from') === 'family') {
+    sessionStorage.setItem('peanut_from_family', '1');
+  }
+} catch { /* sessionStorage 불가 환경 무시 */ }
+
 export default function App() {
   const { user, loading, logout } = useAuth();
 

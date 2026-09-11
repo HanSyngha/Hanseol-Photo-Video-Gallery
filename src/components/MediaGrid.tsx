@@ -107,6 +107,10 @@ export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sor
 
   const gridStyle = columns ? { '--grid-cols': columns } as React.CSSProperties : undefined;
 
+  // srcset이 올바른 해상도를 고르려면 셀이 화면에서 차지하는 실제 너비를 알려줘야 한다.
+  // 640px 이상에선 CSS가 !important로 열 수를 고정하므로 그 값을, 그 아래에선 columns를 쓴다.
+  const cellSizes = `(min-width:1400px) 20vw, (min-width:1024px) 25vw, (min-width:640px) 33vw, ${Math.round(100 / (columns || 2))}vw`;
+
   const renderCard = (item: MediaItem, globalIndex: number, animIndex: number) => (
     <MediaCard
       key={item.id}
@@ -117,6 +121,7 @@ export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sor
       selected={selectedIds?.has(item.id)}
       onLongPress={onLongPress ? () => onLongPress(item.id) : undefined}
       onLikeToggle={onLikeToggle}
+      sizes={cellSizes}
     />
   );
 
@@ -138,6 +143,7 @@ export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sor
         const monthId = monthFirstKeys.get(group.dateKey);
         return (
           <section key={group.dateKey} className={styles.section} id={monthId ? `month-${monthId}` : undefined}>
+            <span id={`month-${group.dateKey}`} aria-hidden="true" style={{ display: 'block', height: 0 }} />
             <div
               className={styles.dateHeader}
               onPointerDown={isAdmin ? () => startPress(group.dateKey) : undefined}

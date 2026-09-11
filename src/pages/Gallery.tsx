@@ -6,6 +6,7 @@ import { usePinchColumns } from '../hooks/usePinchColumns';
 import { usePushNotification } from '../hooks/usePushNotification';
 import MediaGrid from '../components/MediaGrid';
 import Lightbox from '../components/Lightbox';
+import ShortsViewer from '../components/ShortsViewer';
 import UploadModal from '../components/UploadModal';
 import Admin from './Admin';
 import DateScrubber from '../components/DateScrubber';
@@ -17,9 +18,11 @@ interface Props {
 }
 
 type SortMode = 'recent' | 'likes' | 'views' | 'favorites';
+const SHORTS_LAUNCH_KEY = 'peanut-share:shorts-launch:v1';
 
-// 업로드는 기본 비활성 (땅콩페밀리에서만 업로드/큐레이션). 나중에 env로 재활성 가능.
-const UPLOAD_ENABLED = import.meta.env.VITE_UPLOAD_ENABLED === 'true';
+// 업로드 복원(#3): viewer(부모님·친척)가 구앱에 올리면 땅콩페밀리 땅땅&콩콩으로 동기화됨.
+// 기본 활성. env VITE_UPLOAD_ENABLED='false'로만 비활성(kill-switch).
+const UPLOAD_ENABLED = import.meta.env.VITE_UPLOAD_ENABLED !== 'false';
 
 // 설이 생일 계산
 const BIRTH = new Date(2026, 1, 19);
@@ -37,6 +40,8 @@ export default function Gallery({ user, onLogout }: Props) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [showShorts, setShowShorts] = useState(false);
+  const [showShortsLaunch, setShowShortsLaunch] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -46,6 +51,9 @@ export default function Gallery({ user, onLogout }: Props) {
   const [sharing, setSharing] = useState(false);
   const [shuffledItems, setShuffledItems] = useState<{ id: number; filename: string; type: string }[] | null>(null);
   const initialLoad = useRef(false);
+  const nextCursorRef = useRef<string | null>(null);
+  const [allMedia, setAllMedia] = useState<{ id: number; filename: string; type: string; createdAt: string }[]>([]);
+  const [jumping, setJumping] = useState(false);
 
   const daysSinceBirth = getDaysSinceBirth();
   const isMilestone = MILESTONES.includes(daysSinceBirth);
@@ -63,7 +71,59 @@ export default function Gallery({ user, onLogout }: Props) {
       setItems(data.items);
     }
     setNextCursor(data.nextCursor);
+    nextCursorRef.current = data.nextCursor;
+    return data.nextCursor;
   }, [sort]);
+
+  // 전체 미디어 날짜(달) — 날짜 이동 달력이 '아직 안 불러온 과거 달'도 보여주도록
+  useEffect(() => {
+    let alive = true;
+    api.getMediaIds().then(d => { if (alive) setAllMedia(d.items); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    const key = `${SHORTS_LAUNCH_KEY}:user:${user.id}`;
+    try {
+      if (localStorage.getItem(key) === 'seen') return;
+      localStorage.setItem(key, 'seen');
+      setShowShortsLaunch(true);
+    } catch {
+      setShowShortsLaunch(true);
+    }
+  }, [user.id]);
+
+  const allMonths = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of allMedia) { const ym = (m.createdAt || '').slice(0, 7); if (ym) set.add(ym); }
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [allMedia]);
+
+  const allDays = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of allMedia) { const d = (m.createdAt || '').slice(0, 10); if (d) set.add(d); }
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [allMedia]);
+
+  // 특정 날짜로 '바로' 점프: 서버 커서를 그 날짜로 세팅 → 요청 1번으로 그 지점부터 로드.
+  // (예전 방식은 지금~그 날짜까지 페이지를 전부 순차 로드해서 옛날일수록 끝없이 걸렸음)
+  const jumpToDate = useCallback(async (cursor: string) => {
+    setJumping(true);
+    try {
+      const data = await api.getMedia(cursor, 'recent');
+      setItems(data.items);
+      setNextCursor(data.nextCursor);
+      nextCursorRef.current = data.nextCursor;
+      requestAnimationFrame(() => { const el = getScrollEl(); if (el) el.scrollTop = 0; });
+    } catch { /* 무시 */ } finally {
+      setJumping(false);
+    }
+    // getScrollEl은 stable이라 deps 생략
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // 월: 그 달 끝(YYYY-MM-99)부터 / 일: 그 날 끝(YYYY-MM-DD 99)부터 — createdAt < cursor 문자열 비교
+  const jumpToMonth = useCallback((month: string) => jumpToDate(`${month}-99`), [jumpToDate]);
+  const jumpToDay = useCallback((day: string) => jumpToDate(`${day} 99`), [jumpToDate]);
 
   const [pollingActive, setPollingActive] = useState(false);
   const processing = useProcessingStatus(pollingActive);
@@ -123,8 +183,11 @@ export default function Gallery({ user, onLogout }: Props) {
     loadMore(null, newSort).finally(() => setLoading(false));
   }, [sort, loadMore]);
 
+  const loadingMoreRef = useRef(false);
   const handleLoadMore = useCallback(() => {
-    if (nextCursor) loadMore(nextCursor);
+    if (!nextCursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    loadMore(nextCursor).finally(() => { loadingMoreRef.current = false; });
   }, [nextCursor, loadMore]);
 
   const handleDelete = useCallback(async (id: number) => {
@@ -296,14 +359,38 @@ export default function Gallery({ user, onLogout }: Props) {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  // 페밀리앱에서 들어온 master에게만 '땅콩페밀리로' 돌아가기 제공 (non-master는 페밀리앱 접근 경로 없음)
+  const fromFamily = (() => { try { return sessionStorage.getItem('peanut_from_family') === '1'; } catch { return false; } })();
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
+          {fromFamily && user.role === 'master' && (
+            <button
+              onClick={() => { window.location.href = 'https://syngha.synology.me:2290'; }}
+              aria-label="땅콩페밀리로 돌아가기"
+              style={{ background: 'none', border: 'none', padding: '4px 6px 4px 0', display: 'flex', alignItems: 'center', color: 'var(--color-text)', cursor: 'pointer' }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+          )}
           <img src="/땅땅로고.png" alt="" className={styles.headerLogo} />
           <span className={styles.headerTitle}>땅콩땅콩땅콩콩땅</span>
         </div>
         <div className={styles.headerRight}>
+          {!selectMode && items.length > 0 && (
+            <button
+              className={`${styles.selectBtn} ${showShortsLaunch ? styles.shortsLaunchBtn : ''}`}
+              onClick={() => {
+                setShowShortsLaunch(false);
+                setShowShorts(true);
+              }}
+              title="영상 쇼츠"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="3" /><path d="m10 9 5 3-5 3V9z" fill="currentColor" stroke="none" /></svg>
+            </button>
+          )}
           {!selectMode && items.length > 0 && (
             <button className={styles.selectBtn} onClick={startRandomSlideshow} title="랜덤 재생">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -376,6 +463,28 @@ export default function Gallery({ user, onLogout }: Props) {
           <div className={styles.pushBanner}>
             <span>새 사진/영상이 올라오면 알림을 받아보세요</span>
             <button onClick={togglePush} className={styles.pushBannerBtn}>알림 켜기</button>
+          </div>
+        )}
+
+        {showShortsLaunch && (
+          <div className={styles.shortsLaunchBanner}>
+            <div>
+              <strong>신규 기능론칭! (땅땅쇼츠)</strong>
+              <span>영상만 쇼츠처럼 넘겨볼 수 있어요.</span>
+            </div>
+            <div className={styles.shortsLaunchActions}>
+              <button
+                onClick={() => {
+                  setShowShortsLaunch(false);
+                  setShowShorts(true);
+                }}
+              >
+                보기
+              </button>
+              <button className={styles.shortsLaunchClose} onClick={() => setShowShortsLaunch(false)} aria-label="런칭 안내 닫기">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
           </div>
         )}
 
@@ -496,7 +605,16 @@ export default function Gallery({ user, onLogout }: Props) {
             babyBirth="2026-02-19"
             getScrollEl={getScrollEl}
             hasMore={!!nextCursor}
+            allMonths={allMonths}
+            onJumpToMonth={jumpToMonth}
+            allDays={allDays}
+            onJumpToDay={jumpToDay}
           />
+        )}
+        {jumping && (
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1100, background: '#1c1c1e', color: '#fff', padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
+            과거 사진 불러오는 중…
+          </div>
         )}
       </main>
 
@@ -577,6 +695,15 @@ export default function Gallery({ user, onLogout }: Props) {
           onFavoriteToggle={handleFavoriteToggle}
           onDateChange={handleDateChange}
           initialSlideshow={!!shuffledItems}
+          hasMore={!shuffledItems && !!nextCursor}
+          onLoadMore={handleLoadMore}
+        />
+      )}
+
+      {showShorts && (
+        <ShortsViewer
+          user={user}
+          onClose={() => setShowShorts(false)}
         />
       )}
 

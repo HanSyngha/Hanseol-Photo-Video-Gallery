@@ -10,15 +10,17 @@
   animation: cardIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.card:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--color-border);
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-border);
+  }
 }
 
 .card:active {
-  transform: scale(0.97);
-  transition-duration: 0.1s;
+  transform: scale(0.96);
+  transition: transform 100ms cubic-bezier(0.4, 0, 1, 1);
 }
 
 .imageWrap {
@@ -43,14 +45,19 @@
 .placeholder {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--color-border-light) 0%, var(--color-border) 100%);
-  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    100deg,
+    var(--color-border-light) 30%,
+    var(--color-surface) 48%,
+    var(--color-border-light) 66%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes shimmer {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
+  from { background-position: 150% 0; }
+  to { background-position: -150% 0; }
 }
 
 .newBadge {
@@ -80,10 +87,11 @@
   width: 60%;
   height: 200%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  animation: shimmer 2.5s ease-in-out infinite;
+  animation: badgeSweep 2.5s ease-in-out infinite;
 }
 
-@keyframes shimmer {
+/* 이름이 shimmer면 위 스켈레톤용 @keyframes shimmer를 덮어써서 스켈레톤이 죽는다. 분리 필수. */
+@keyframes badgeSweep {
   0% { left: -100%; }
   40%, 100% { left: 150%; }
 }
@@ -151,7 +159,19 @@
 }
 
 .likeCount:active {
-  transform: scale(1.2);
+  transform: scale(1.06);
+}
+
+/* 누른 순간 하트만 튀어오른다 — 숫자까지 같이 커지면 지저분하다 */
+.likeCount.pop svg {
+  animation: heartPop 420ms var(--ease-spring);
+}
+
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45); }
+  60%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
 }
 
 .likeCount.active {

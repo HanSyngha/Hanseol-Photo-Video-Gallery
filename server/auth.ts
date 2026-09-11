@@ -66,6 +66,8 @@ function generateToken(userId: number, role: string): string {
 }
 
 function upsertUser(provider: string, providerId: string, name: string, profileImage: string | null) {
+  // 카카오 등은 profile_image_url을 http://로 주는데 HTTPS 사이트에선 mixed-content로 차단됨 → https로 승격
+  if (profileImage && profileImage.startsWith('http://')) profileImage = 'https://' + profileImage.slice(7);
   const existing = db.prepare('SELECT id, role FROM users WHERE provider = ? AND providerId = ?').get(provider, providerId) as any;
 
   if (existing) {

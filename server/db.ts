@@ -121,6 +121,9 @@ try { db.exec('CREATE INDEX IF NOT EXISTS idx_media_hash ON media(hash)'); } cat
 // 마이그레이션: users에 banned 컬럼 추가
 try { db.exec('ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0'); } catch {}
 
+// 마이그레이션: 카카오 프사 http URL → https 승격 (HTTPS 사이트 mixed-content 차단 방지)
+try { db.exec("UPDATE users SET profileImage = 'https://' || substr(profileImage, 8) WHERE profileImage LIKE 'http://%'"); } catch {}
+
 // 마이그레이션: media에 uploadedAt 컬럼 추가 (실제 업로드 시각)
 try { db.exec('ALTER TABLE media ADD COLUMN uploadedAt TEXT'); } catch {}
 

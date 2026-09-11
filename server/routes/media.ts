@@ -7,6 +7,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { pipeline } from 'stream/promises';
 import { v4 as uuidv4 } from 'uuid';
+import { ensureDerivative, parseDerivativeWidth } from '../derivatives.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -14,6 +15,16 @@ function resolveDataDir(source: string | null): string {
   return source === 'family'
     ? (process.env.FAMILY_DATA_DIR || '/app/data-family')
     : DATA_DIR;
+}
+
+function parseVideoCursor(cursor?: string): { createdAt: string; id: number | null } | null {
+  if (!cursor) return null;
+  const [createdAt, id] = cursor.split('|');
+  return { createdAt, id: id ? parseInt(id) : null };
+}
+
+function makeVideoCursor(row: any): string {
+  return `${row.createdAt}|${row.id}`;
 }
 
 export function registerMediaRoutes(app: FastifyInstance) {
@@ -48,7 +59,11 @@ export function registerMediaRoutes(app: FastifyInstance) {
     } else if (sort === 'favorites') {
       rows = db.prepare(baseQuery + ' WHERE EXISTS(SELECT 1 FROM favorites WHERE mediaId = m.id AND userId = ?) ORDER BY m.createdAt DESC').all(userId, userId, userId);
     } else if (cursor) {
-      rows = db.prepare(baseQuery + ' WHERE m.createdAt < ? ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, userId, cursor, lim);
+      // 커서는 'createdAt|id' 복합키. id 없는 옛 커서(날짜 점프 등)는 createdAt만으로 비교.
+      const c = parseVideoCursor(cursor)!;
+      rows = c.id !== null && !Number.isNaN(c.id)
+        ? db.prepare(baseQuery + ' WHERE (m.createdAt < ? OR (m.createdAt = ? AND m.id < ?)) ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, userId, c.createdAt, c.createdAt, c.id, lim)
+        : db.prepare(baseQuery + ' WHERE m.createdAt < ? ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, userId, c.createdAt, lim);
     } else {
       rows = db.prepare(baseQuery + ' ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, userId, lim);
     }
@@ -62,8 +77,55 @@ export function registerMediaRoutes(app: FastifyInstance) {
     });
 
     const noPagination = sort === 'likes' || sort === 'views' || sort === 'favorites';
-    const nextCursor = noPagination ? null : (rows.length === lim ? rows[rows.length - 1].createdAt : null);
+    const nextCursor = noPagination ? null : (rows.length === lim ? makeVideoCursor(rows[rows.length - 1]) : null);
     return { items, nextCursor };
+  });
+
+  // 쇼츠형 영상 피드: 전체 갤러리 목록과 분리해 영상만 가볍게 페이지네이션한다.
+  app.get('/api/media/videos', { preHandler: authenticate }, async (request) => {
+    const { cursor, limit = '12' } = request.query as { cursor?: string; limit?: string };
+    const lim = Math.min(Math.max(parseInt(limit) || 12, 1), 24);
+    const { userId, role } = (request as any).user;
+
+    const baseQuery = `
+      SELECT m.*,
+        u.name as uploaderName, u.profileImage as uploaderImage,
+        (SELECT COUNT(*) FROM likes WHERE mediaId = m.id) as likeCount,
+        (SELECT COUNT(*) FROM comments WHERE mediaId = m.id) as commentCount,
+        (SELECT COUNT(*) FROM views WHERE mediaId = m.id) as viewCount,
+        (SELECT COUNT(*) FROM shares WHERE mediaId = m.id) as shareCount,
+        EXISTS(SELECT 1 FROM likes WHERE mediaId = m.id AND userId = ?) as liked,
+        EXISTS(SELECT 1 FROM favorites WHERE mediaId = m.id AND userId = ?) as favorited,
+        (SELECT json_group_array(json_object('userId', vu.id, 'name', vu.name, 'profileImage', vu.profileImage))
+         FROM (SELECT DISTINCT vw.userId FROM views vw WHERE vw.mediaId = m.id) dv JOIN users vu ON vu.id = dv.userId) as viewersJson,
+        (SELECT json_group_array(json_object('userId', du.id, 'name', du.name, 'profileImage', du.profileImage))
+         FROM downloads dl JOIN users du ON du.id = dl.userId WHERE dl.mediaId = m.id) as downloadersJson
+      FROM media m
+      JOIN users u ON u.id = m.uploaderId
+      WHERE m.type = 'video'
+    `;
+
+    const parsedCursor = parseVideoCursor(cursor);
+    let rows: any[];
+    if (parsedCursor?.id) {
+      rows = db.prepare(baseQuery + ' AND (m.createdAt < ? OR (m.createdAt = ? AND m.id < ?)) ORDER BY m.createdAt DESC, m.id DESC LIMIT ?')
+        .all(userId, userId, parsedCursor.createdAt, parsedCursor.createdAt, parsedCursor.id, lim);
+    } else if (parsedCursor) {
+      rows = db.prepare(baseQuery + ' AND m.createdAt < ? ORDER BY m.createdAt DESC, m.id DESC LIMIT ?')
+        .all(userId, userId, parsedCursor.createdAt, lim);
+    } else {
+      rows = db.prepare(baseQuery + ' ORDER BY m.createdAt DESC, m.id DESC LIMIT ?').all(userId, userId, lim);
+    }
+
+    const isMaster = role === 'master';
+    const items = rows.map((row: any) => {
+      const viewers = isMaster && row.viewersJson ? JSON.parse(row.viewersJson).filter((v: any) => v.userId !== null) : [];
+      const downloaders = isMaster && row.downloadersJson ? JSON.parse(row.downloadersJson).filter((d: any) => d.userId !== null) : [];
+      const { viewersJson, downloadersJson, ...rest } = row;
+      return { ...rest, viewCount: row.viewCount || 0, shareCount: row.shareCount || 0, liked: !!row.liked, favorited: !!row.favorited, viewers, downloaders };
+    });
+
+    return { items, nextCursor: rows.length === lim ? makeVideoCursor(rows[rows.length - 1]) : null };
   });
 
   // 전체 미디어 ID 목록 (랜덤 재생용, 가벼움)
@@ -119,8 +181,8 @@ export function registerMediaRoutes(app: FastifyInstance) {
 
   // 업로드
   app.post('/api/media/upload', { preHandler: authenticate }, async (request, reply) => {
-    // 업로드 비활성: 콘텐츠는 땅콩페밀리에서만 업로드/큐레이션. env로 재활성 가능.
-    if (process.env.UPLOAD_ENABLED !== 'true') {
+    // 업로드 복원(#3): 기본 활성. env UPLOAD_ENABLED='false'로만 비활성(kill-switch).
+    if (process.env.UPLOAD_ENABLED === 'false') {
       return reply.code(403).send({ error: '이 앱에서는 업로드가 비활성화되어 있습니다' });
     }
     const data = await request.file();
@@ -247,8 +309,22 @@ export function registerMediaRoutes(app: FastifyInstance) {
   // 썸네일 서빙
   app.get('/api/media/:id/thumb', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const media = db.prepare('SELECT filename, source FROM media WHERE id = ?').get(parseInt(id)) as any;
+    const media = db.prepare('SELECT filename, type, source FROM media WHERE id = ?').get(parseInt(id)) as any;
     if (!media) return reply.code(404).send({ error: 'Not found' });
+
+    // ?w=640|1280 → 고해상도 파생본. 없으면 원본에서 만들어 캐시한다.
+    // (실패하면 아래 300px 썸네일로 조용히 폴백)
+    const width = parseDerivativeWidth((request.query as any)?.w);
+    if (width) {
+      const deriv = await ensureDerivative(resolveDataDir(media.source), media.filename, media.type, width);
+      if (deriv) {
+        reply.headers({
+          'Content-Type': 'image/webp',
+          'Cache-Control': 'max-age=31536000, immutable',
+        });
+        return reply.send(fs.createReadStream(deriv));
+      }
+    }
 
     const thumbPath = path.join(resolveDataDir(media.source), 'thumbnails', media.filename + '.webp');
     if (!fs.existsSync(thumbPath)) return reply.code(404).send({ error: 'Thumbnail not found' });

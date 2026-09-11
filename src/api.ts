@@ -91,6 +91,14 @@ export const api = {
       `/media${qs ? `?${qs}` : ''}`,
     );
   },
+  getVideoFeed: (cursor?: string | null) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set('cursor', cursor);
+    const qs = params.toString();
+    return request<{ items: MediaItem[]; nextCursor: string | null }>(
+      `/media/videos${qs ? `?${qs}` : ''}`,
+    );
+  },
 
   getMediaDetail: (id: number) => request<MediaItem>(`/media/${id}`),
   getMediaIds: () => request<{ items: { id: number; filename: string; type: string; createdAt: string }[] }>('/media/ids'),
@@ -198,7 +206,14 @@ export const api = {
     request<{ ok: boolean }>(`/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned }) }),
   deleteUser: (id: number) => request<{ ok: boolean }>(`/users/${id}`, { method: 'DELETE' }),
 
-  thumbUrl: (id: number, v?: string) => `${BASE}/media/${id}/thumb${v ? `?v=${v}` : ''}`,
+  // w: 640 | 1280 → 서버가 원본에서 파생본을 만들어 캐시해 돌려준다. 생략하면 기존 300px.
+  thumbUrl: (id: number, v?: string, w?: 640 | 1280) => {
+    const q = new URLSearchParams();
+    if (v) q.set('v', v);
+    if (w) q.set('w', String(w));
+    const qs = q.toString();
+    return `${BASE}/media/${id}/thumb${qs ? `?${qs}` : ''}`;
+  },
   fileUrl: (id: number, v?: string) => `${BASE}/media/${id}/file${v ? `?v=${v}` : ''}`,
   hlsUrl: (id: number) => `${BASE}/media/${id}/hls/playlist.m3u8`,
   downloadUrl: (id: number) => `${BASE}/media/${id}/download`,
