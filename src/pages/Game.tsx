@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api, type User } from '../api';
 import {
-  newGame, act, ACTIONS, CHAPTERS, TOTAL_DAYS, SLOTS, SLOT_LABEL,
+  newGame, act, ACTIONS, TOTAL_DAYS, SLOTS, SLOT_LABEL,
   chapterOf, scriptEventOf, currentSlot, gradeOf,
+  stageOf, availableCats, availableMethods, normalizeState,
   type GameState, type Category, type Slot,
 } from '../game/engine';
 import styles from './Game.module.css';
@@ -26,6 +27,9 @@ export default function Game({ user, onClose }: Props) {
   const [dayEnd, setDayEnd] = useState<{ day: number; unlocked: boolean } | null>(null);
   const [rank, setRank] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState<{ kind: 'ok' | 'fail'; text: string; n: number } | null>(null);
+  const [teacher, setTeacher] = useState<string | null>(null);
+  const flashN = useRef(0);
   const saveTimer = useRef<number | null>(null);
   const prevDay = useRef(1);
 
@@ -34,7 +38,7 @@ export default function Game({ user, onClose }: Props) {
     api.getGameSave()
       .then(r => {
         if (!r.save) { setState(null); return; }
-        const st = r.save.state as GameState;
+        const st = normalizeState(r.save.state);   // 구버전 세이브 필드 보정
         // 이어하기로 들어올 때 '하루 끝' 시트가 헛뜨지 않게 기준일을 세이브에 맞춘다.
         // (초기값 1로 두면 D+17 세이브를 열자마자 'D+1 끝'이 떠버린다)
         prevDay.current = st.day;
@@ -84,9 +88,16 @@ export default function Game({ user, onClose }: Props) {
     if (!state || busy) return;
     setBusy(true);
     const s: GameState = JSON.parse(JSON.stringify(state));
-    act(s, cat, method);
+    const r = act(s, cat, method);
     s.log = s.log.slice(-4);
     setState(s); persist(s); setOpenCat(null);
+
+    // 성공/실패를 화면 한복판에 크게. 게이지 바만으론 뭐가 일어났는지 모른다.
+    const n = ++flashN.current;
+    setFlash({ kind: r.ok ? 'ok' : 'fail', text: r.text, n });
+    setTimeout(() => setFlash(f => (f && f.n === n ? null : f)), 2000);
+    if (r.hint) setTimeout(() => setTeacher(r.hint!), 700);
+
     setTimeout(() => setBusy(false), 160);
   }, [state, busy, persist]);
 
@@ -128,6 +139,7 @@ export default function Game({ user, onClose }: Props) {
   }
 
   const ch = chapterOf(state.day);
+  const stage = stageOf(state.day);
   const slot = currentSlot(state);
   const ev = scriptEventOf(state.day);
   const slotPhotos: any[] = dayMedia?.slots?.[slot] ?? [];
@@ -191,14 +203,26 @@ export default function Game({ user, onClose }: Props) {
             {state.log.slice(-2).map((l, i) => <p key={i} className={i === state.log.slice(-2).length - 1 ? styles.logNow : ''}>{l}</p>)}
           </div>
 
-          {/* 행동 카드 */}
+          {/* 행동 카드 — 이 시기에 부모가 할 수 있는 것만 나온다 */}
+          {stage.cats.length < ACTIONS.length && (
+            <p className={styles.stageNote}><b>{stage.label}</b> · {stage.note}</p>
+          )}
           <div className={styles.deck}>
-            {ACTIONS.map(a => (
-              <button key={a.id} className={styles.card} onClick={() => setOpenCat(a.id)} disabled={busy}>
-                <span className={styles.cardIcon}>{a.icon}</span>
-                <span className={styles.cardLabel}>{a.label}</span>
-              </button>
-            ))}
+            {ACTIONS.map(a => {
+              const usable = stage.cats.includes(a.id);
+              return (
+                <button
+                  key={a.id}
+                  className={`${styles.card} ${usable ? '' : styles.cardLocked}`}
+                  onClick={() => usable && setOpenCat(a.id)}
+                  disabled={busy || !usable}
+                  title={usable ? a.label : `${stage.label}에서는 할 수 없어요`}
+                >
+                  <span className={styles.cardIcon}>{usable ? a.icon : '🔒'}</span>
+                  <span className={styles.cardLabel}>{a.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -236,6 +260,29 @@ export default function Game({ user, onClose }: Props) {
         </div>
       )}
 
+      {/* 결과 토스트 — 성공 초록 / 실패 빨강 */}
+      {flash && (
+        <div className={`${styles.flash} ${flash.kind === 'ok' ? styles.flashOk : styles.flashFail}`} key={flash.n}>
+          <span className={styles.flashMark}>{flash.kind === 'ok' ? '✓' : '✕'}</span>
+          <span className={styles.flashText}>{flash.text}</span>
+        </div>
+      )}
+
+      {/* 삐용삐용 선생님 */}
+      {teacher && (
+        <div className={styles.sheetBack} onClick={() => setTeacher(null)}>
+          <div className={styles.sheet} onClick={e => e.stopPropagation()}>
+            <div className={styles.sheetGrab} />
+            <div className={styles.teacherRow}>
+              <span className={styles.teacherIcon}>🚨</span>
+              <h3 className={styles.sheetTitle}>삐용삐용 선생님의 조언</h3>
+            </div>
+            <p className={styles.teacherText}>{teacher}</p>
+            <button className={styles.primaryBtn} onClick={() => setTeacher(null)}>고마워요</button>
+          </div>
+        </div>
+      )}
+
       {/* 방법 선택 시트 */}
       {openCat && (
         <div className={styles.sheetBack} onClick={() => setOpenCat(null)}>
@@ -245,7 +292,7 @@ export default function Game({ user, onClose }: Props) {
               {ACTIONS.find(a => a.id === openCat)!.icon} {ACTIONS.find(a => a.id === openCat)!.label} — 어떻게 할까요?
             </h3>
             <div className={styles.methodGrid}>
-              {ACTIONS.find(a => a.id === openCat)!.methods.map(m => (
+              {availableMethods(openCat, state.day).map(m => (
                 <button key={m.id} className={styles.methodBtn} onClick={() => doAct(openCat, m.id)}>{m.label}</button>
               ))}
             </div>

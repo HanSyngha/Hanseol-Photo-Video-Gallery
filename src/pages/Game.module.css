@@ -193,3 +193,43 @@
   .body, .header, .tabs { max-width: 640px; width: 100%; margin-left: auto; margin-right: auto; }
   .sheet { max-width: 640px; margin: 0 auto; border-radius: 22px 22px 0 0; }
 }
+
+/* ── 결과 토스트 ─────────────────────────────────────────
+   게이지 바만으론 방금 뭐가 일어났는지 아무도 모른다.
+   화면 한복판에 크게, 성공은 초록 실패는 빨강. */
+.flash {
+  position: fixed; left: 50%; top: 42%; z-index: 940;
+  transform: translate(-50%, -50%);
+  width: min(84vw, 380px);
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 16px 18px; border-radius: 18px;
+  color: #fff; box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
+  animation: flashIn .22s cubic-bezier(.32, .72, 0, 1), flashOut .35s ease 1.6s forwards;
+  pointer-events: none;
+}
+.flashOk { background: #1f9254; }
+.flashFail { background: #c93b3f; }
+.flashMark { font-size: 22px; font-weight: 800; line-height: 1.25; flex: 0 0 auto; }
+.flashText { font-size: 15.5px; font-weight: 700; line-height: 1.45; word-break: keep-all; }
+@keyframes flashIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.94) } to { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
+@keyframes flashOut { to { opacity: 0; transform: translate(-50%, -54%) scale(.98) } }
+
+/* ── 시기 안내 / 잠긴 행동 ──────────────────────────────── */
+.stageNote {
+  font-size: 12px; line-height: 1.6; color: #8a7a64; margin: 0;
+  padding: 9px 11px; border-radius: 11px; background: rgba(148, 107, 45, .08);
+  word-break: keep-all;
+}
+.stageNote b { color: #6b4c1e; }
+.cardLocked { opacity: .4; background: rgba(148, 107, 45, .06); cursor: not-allowed; }
+.cardLocked .cardLabel { color: #a2937d; }
+
+/* ── 삐용삐용 선생님 ────────────────────────────────────── */
+.teacherRow { display: flex; align-items: center; justify-content: center; gap: 7px; }
+.teacherIcon { font-size: 20px; animation: siren 1s ease-in-out infinite; }
+@keyframes siren { 0%, 100% { transform: rotate(-9deg) } 50% { transform: rotate(9deg) } }
+.teacherText {
+  font-size: 14.5px; line-height: 1.7; color: #5c4a32; text-align: center;
+  margin: 0; padding: 13px 14px; border-radius: 13px; background: #fff7e8;
+  word-break: keep-all;
+}

@@ -48,7 +48,11 @@ export const BAL = {
 // ── 행동 ────────────────────────────────────────────────────────────────────
 export type Category = 'feed' | 'sleep' | 'soothe' | 'care';
 
-export interface Method { id: string; label: string; group: string }
+export interface Method {
+  id: string; label: string; group: string;
+  from?: number;   // 이 날부터 가능 (없으면 처음부터)
+  to?: number;     // 이 날까지만 가능 (없으면 끝까지)
+}
 export interface ActionDef {
   id: Category;
   label: string;
@@ -63,10 +67,13 @@ export const ACTIONS: ActionDef[] = [
     methods: [
       { id: 'upright', label: '세워 안고', group: 'hold' },
       { id: 'cradle', label: '눕혀 안고', group: 'hold' },
+      { id: 'burp', label: '중간에 트림시키며', group: 'hold' },
       { id: 'warm', label: '조금 따뜻하게', group: 'temp' },
       { id: 'cool', label: '미지근하게', group: 'temp' },
       { id: 'slow', label: '천천히 나눠서', group: 'temp' },
-      { id: 'burp', label: '중간에 트림시키며', group: 'hold' },
+      // 이유식은 실제 기록대로 D+181부터
+      { id: 'puree', label: '이유식 미음', group: 'solid', from: 181 },
+      { id: 'spoon', label: '숟가락으로 조금씩', group: 'solid', from: 181 },
     ],
   },
   {
@@ -74,35 +81,66 @@ export const ACTIONS: ActionDef[] = [
     methods: [
       { id: 'pat', label: '토닥이기', group: 'touch' },
       { id: 'rock', label: '안고 흔들기', group: 'touch' },
+      // 속싸개는 뒤집기 시작하면 위험해서 뗀다
+      { id: 'swaddle', label: '속싸개로 감싸기', group: 'touch', to: 110 },
       { id: 'lullaby', label: '자장가', group: 'sound' },
       { id: 'shush', label: '쉬~ 소리', group: 'sound' },
       { id: 'dark', label: '불 끄고 어둡게', group: 'sound' },
-      { id: 'swaddle', label: '속싸개로 감싸기', group: 'touch' },
+      { id: 'routine', label: '잘 시간 루틴대로', group: 'sound', from: 90 },
     ],
   },
   {
     id: 'soothe', label: '달래기', icon: '🫂', stamina: 6,
     methods: [
       { id: 'hold', label: '안고 버티기', group: 'body' },
-      { id: 'pacifier', label: '공갈젖꼭지', group: 'stim' },
-      { id: 'walk', label: '안고 걷기', group: 'body' },
-      { id: 'toy', label: '딸랑이', group: 'stim' },
-      { id: 'sing', label: '노래 불러주기', group: 'stim' },
       { id: 'skin', label: '살 맞대고 눕기', group: 'body' },
+      { id: 'walk', label: '안고 걷기', group: 'body', from: 30 },
+      { id: 'pacifier', label: '공갈젖꼭지', group: 'stim', from: 14 },
+      { id: 'sing', label: '노래 불러주기', group: 'stim', from: 30 },
+      { id: 'toy', label: '딸랑이', group: 'stim', from: 45 },
     ],
   },
   {
     id: 'care', label: '돌보기', icon: '🧼', stamina: 5,
     methods: [
       { id: 'diaper', label: '기저귀 갈기', group: 'clean' },
-      { id: 'bath', label: '목욕', group: 'clean' },
       { id: 'clothes', label: '옷 갈아입히기', group: 'clean' },
+      { id: 'bath', label: '목욕', group: 'clean', from: 14 },   // 배꼽 떨어진 뒤
       { id: 'temp', label: '실내온도 맞추기', group: 'env' },
       { id: 'massage', label: '마사지', group: 'env' },
-      { id: 'play', label: '놀아주기', group: 'env' },
+      { id: 'play', label: '놀아주기', group: 'env', from: 45 },
+      { id: 'tummy', label: '터미타임', group: 'env', from: 45 },
     ],
   },
 ];
+
+// ── 시기(장소) ─────────────────────────────────────────────────────────────
+// "태어나자마자는 병원이었는데 거기서도 토닥이기?" — 그때는 손도 못 댄다.
+// 시기마다 아예 할 수 있는 행동 자체가 다르다.
+export interface Stage {
+  id: string; label: string; from: number; to: number;
+  cats: Category[];      // 이 시기에 부모가 직접 할 수 있는 것
+  note: string;          // 못 하는 이유를 화면에 설명
+  drainMul: number;      // 남이 돌봐주는 동안은 게이지가 덜 닳는다
+}
+
+export const STAGES: Stage[] = [
+  { id: 'hospital', label: '병원', from: 1, to: 4, cats: ['feed', 'soothe'],
+    note: '신생아실에 있어요. 재우고 씻기는 건 간호사 선생님 몫이라 우리는 수유실에서 만나는 게 전부.', drainMul: 0.35 },
+  { id: 'center', label: '조리원', from: 5, to: 20, cats: ['feed', 'soothe', 'sleep'],
+    note: '조리원이에요. 밤에는 신생아실에 맡기고, 목욕도 아직 선생님이 해줍니다.', drainMul: 0.6 },
+  { id: 'home', label: '집', from: 21, to: TOTAL_DAYS, cats: ['feed', 'sleep', 'soothe', 'care'],
+    note: '이제 온전히 우리 몫이에요.', drainMul: 1 },
+];
+
+export const stageOf = (day: number): Stage =>
+  STAGES.find(st => day >= st.from && day <= st.to) ?? STAGES[STAGES.length - 1];
+
+// 그날 쓸 수 있는 카테고리 / 방법
+export const availableCats = (day: number): Category[] => stageOf(day).cats;
+export function availableMethods(cat: Category, day: number): Method[] {
+  return ACTION_BY_ID[cat].methods.filter(m => (m.from ?? 1) <= day && day <= (m.to ?? TOTAL_DAYS));
+}
 
 const ACTION_BY_ID = Object.fromEntries(ACTIONS.map(a => [a.id, a])) as Record<Category, ActionDef>;
 
@@ -162,6 +200,14 @@ export interface PatternState {
 
 export interface Cry { causeId: string | null; tries: number; holds: number }
 
+// 계열 이름 — 힌트에서 "이 방향으로 가보라"고 짚어줄 때 쓴다.
+export const GROUP_LABEL: Record<string, string> = {
+  hold: '안는 자세', temp: '온도나 속도', solid: '이유식',
+  touch: '몸에 닿는 방법', sound: '소리나 불빛 같은 환경',
+  body: '품에 안아주는 것', stim: '물건이나 소리로 주의 돌리기',
+  clean: '씻기고 갈아입히는 것', env: '주변 환경이나 몸을 만져주는 것',
+};
+
 export interface GameState {
   seed: number;
   day: number;
@@ -177,6 +223,8 @@ export interface GameState {
   streak: number;
   bestStreak: number;
   score: number;
+  miss: Record<Category, number>;   // 카테고리별 연속 실패 — 힌트 트리거
+  hintsUsed: number;
   finished: boolean;
   log: string[];          // 최근 연출 문구
 }
@@ -192,8 +240,24 @@ const clamp = (v: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 // ── 패턴 ────────────────────────────────────────────────────────────────────
 function rollPattern(s: GameState): Record<Category, string> {
   const out = {} as Record<Category, string>;
-  for (const a of ACTIONS) out[a.id] = pick(s, a.methods).id;
+  for (const a of ACTIONS) {
+    const ms = availableMethods(a.id, s.day);
+    out[a.id] = pick(s, ms.length ? ms : a.methods).id;
+  }
   return out;
+}
+
+// 해금/잠김으로 정답이 지금 못 쓰는 방법이 됐으면(예: D+110에 속싸개가 사라짐)
+// 그 카테고리만 조용히 다시 뽑는다. 안 그러면 영영 못 맞히는 판이 된다.
+function refreshLockedAnswers(s: GameState) {
+  for (const a of ACTIONS) {
+    const ms = availableMethods(a.id, s.day);
+    if (!ms.length) continue;
+    if (!ms.some(m => m.id === s.pattern.correct[a.id])) {
+      s.pattern.correct[a.id] = pick(s, ms).id;
+      s.pattern.log[a.id] = {};
+    }
+  }
 }
 
 function resetPattern(s: GameState) {
@@ -265,11 +329,33 @@ export function newGame(seed = Date.now() >>> 0): GameState {
     cry: null,
     dayScore: 0, dayTurns: 0, dayAvgSum: 0,
     album: [], streak: 0, bestStreak: 0, score: 0,
+    miss: { feed: 0, sleep: 0, soothe: 0, care: 0 }, hintsUsed: 0,
     finished: false,
     log: [],
   };
   s.pattern.correct = rollPattern(s);
   s.pattern.nextResetDay = BAL.patternResetMin + Math.floor(rng(s) * (BAL.patternResetMax - BAL.patternResetMin + 1));
+  return s;
+}
+
+// 예전 버전 세이브에 없는 필드를 채운다.
+// 엔진에 상태 필드를 추가할 때마다 기존 세이브가 undefined로 터지므로,
+// 불러온 직후 반드시 이걸 통과시킨다.
+export function normalizeState(raw: any): GameState {
+  const base = newGame(raw?.seed ?? 1);
+  const s: GameState = { ...base, ...raw };
+  s.baby = { ...base.baby, ...(raw?.baby ?? {}) };
+  s.parent = { ...base.parent, ...(raw?.parent ?? {}) };
+  s.pattern = { ...base.pattern, ...(raw?.pattern ?? {}) };
+  s.pattern.log = { feed: {}, sleep: {}, soothe: {}, care: {}, ...(raw?.pattern?.log ?? {}) };
+  s.pattern.correct = { ...base.pattern.correct, ...(raw?.pattern?.correct ?? {}) };
+  s.miss = { feed: 0, sleep: 0, soothe: 0, care: 0, ...(raw?.miss ?? {}) };
+  s.hintsUsed = raw?.hintsUsed ?? 0;
+  s.album = Array.isArray(raw?.album) ? raw.album : [];
+  s.log = Array.isArray(raw?.log) ? raw.log : [];
+  s.dayAvgSum = raw?.dayAvgSum ?? 0;
+  s.cry = raw?.cry ?? null;
+  refreshLockedAnswers(s);
   return s;
 }
 
@@ -290,6 +376,8 @@ function startCry(s: GameState) {
 export interface TurnResult {
   ok: boolean;
   text: string;
+  tier?: Tier;
+  hint?: string;      // 삐용삐용 선생님의 조언
   cryResolved?: boolean;
   cryFailed?: boolean;
   arousalHit?: boolean;
@@ -409,9 +497,22 @@ export function act(s: GameState, cat: Category, method: string): TurnResult {
     }
   }
 
+  // 같은 행동을 계속 헛짚으면 선생님이 방향을 짚어준다.
+  let hint: string | undefined;
+  if (ok) s.miss[cat] = 0;
+  else {
+    s.miss[cat] = (s.miss[cat] ?? 0) + 1;
+    if (s.miss[cat] >= 3) {
+      const g = ACTION_BY_ID[cat].methods.find(m => m.id === s.pattern.correct[cat])?.group;
+      hint = `${def.label}는 지금 '${GROUP_LABEL[g ?? ''] ?? '다른 방향'}' 쪽이 나을 것 같아요.`;
+      s.miss[cat] = 0;
+      s.hintsUsed += 1;
+    }
+  }
+
   s.log.push(text);
   advance(s);
-  return { ok, text, arousalHit };
+  return { ok, text, tier, hint, arousalHit };
 }
 
 // ── 시간 진행 ───────────────────────────────────────────────────────────────
@@ -420,7 +521,7 @@ function advance(s: GameState) {
   const ch = chapterOf(s.day);
 
   // 게이지 자연 감소 — 신생아기일수록 빨리 닳는다
-  const drain = s.day <= 40 ? 1.35 : s.day <= 96 ? 1.15 : 1.0;
+  const drain = (s.day <= 40 ? 1.35 : s.day <= 96 ? 1.15 : 1.0) * stageOf(s.day).drainMul;
   s.baby.hunger = clamp(s.baby.hunger - BAL.drainHunger * drain);
   s.baby.sleep = clamp(s.baby.sleep - BAL.drainSleep * drain);
   if (s.baby.hunger < 25 || s.baby.sleep < 25) s.baby.mood = clamp(s.baby.mood - 10);
@@ -467,6 +568,7 @@ function endDay(s: GameState) {
   const ev = scriptEventOf(s.day);
   if (ev?.kind === 'reset') resetPattern(s);
   else if (s.day >= s.pattern.nextResetDay) resetPattern(s);
+  refreshLockedAnswers(s);
 
   const slot = SLOTS[0];
   if (rng(s) < cryChance(s.day, slot)) startCry(s);
