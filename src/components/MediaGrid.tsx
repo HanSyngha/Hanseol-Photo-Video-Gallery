@@ -14,7 +14,6 @@ interface Props {
   selectMode?: boolean;
   selectedIds?: Set<number>;
   onLongPress?: (firstId: number) => void;
-  onLikeToggle?: (id: number, liked: boolean) => void;
   isAdmin?: boolean;
 }
 
@@ -42,7 +41,7 @@ interface DateGroup {
   items: { item: MediaItem; globalIndex: number }[];
 }
 
-export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sort, columns, selectMode, selectedIds, onLongPress, onLikeToggle, isAdmin }: Props) {
+export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sort, columns, selectMode, selectedIds, onLongPress, isAdmin }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // 갤러리 이벤트 자막
@@ -120,7 +119,6 @@ export default function MediaGrid({ items, onItemClick, onLoadMore, hasMore, sor
       selectMode={selectMode}
       selected={selectedIds?.has(item.id)}
       onLongPress={onLongPress ? () => onLongPress(item.id) : undefined}
-      onLikeToggle={onLikeToggle}
       sizes={cellSizes}
     />
   );

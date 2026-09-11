@@ -12,6 +12,7 @@ import UploadModal from '../components/UploadModal';
 import Admin from './Admin';
 import DateScrubber from '../components/DateScrubber';
 import styles from './Gallery.module.css';
+import Icon from '../components/ui/Icon';
 
 interface Props {
   user: User;
@@ -388,7 +389,7 @@ export default function Gallery({ user, onLogout }: Props) {
               title="설이 키우기"
               aria-label="설이 키우기"
             >
-              <span style={{ fontSize: 17, lineHeight: 1 }}>👶</span>
+              <Icon name="baby" size={16} />
             </button>
           )}
           {!selectMode && items.length > 0 && (
@@ -604,7 +605,7 @@ export default function Gallery({ user, onLogout }: Props) {
             selectMode={selectMode}
             selectedIds={selectedIds}
             onLongPress={canShare ? enterSelectMode : undefined}
-            onLikeToggle={handleLikeToggle}
+           
             isAdmin={user.role === 'master'}
           />
         )}

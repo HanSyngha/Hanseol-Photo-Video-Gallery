@@ -9,6 +9,7 @@ import Counter from 'yet-another-react-lightbox/plugins/counter';
 import 'yet-another-react-lightbox/styles.css';
 import Comments from './Comments';
 import styles from './Lightbox.module.css';
+import Icon from './ui/Icon';
 
 interface Props {
   items: MediaItem[];
@@ -350,7 +351,7 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
           <div className={styles.peopleSection}>
             {item.viewers.length > 0 && (
               <div className={styles.peopleRow}>
-                <span className={styles.peopleIcon}>👁</span>
+                <Icon name="eye" size={14} className={styles.peopleIcon} />
                 <span className={styles.peopleNames}>{item.viewers.map(v => v.name).join(', ')}</span>
               </div>
             )}
@@ -362,7 +363,7 @@ export default function Lightbox({ items, index, user, onClose, onNavigate, onDe
             )}
             {item.shareCount > 0 && (
               <div className={styles.peopleRow}>
-                <span className={styles.peopleIcon}>📤</span>
+                <Icon name="download" size={14} className={styles.peopleIcon} />
                 <span className={styles.peopleNames}>공유 {item.shareCount}회</span>
               </div>
             )}

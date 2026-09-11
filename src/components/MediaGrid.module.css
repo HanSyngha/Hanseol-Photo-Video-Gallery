@@ -66,13 +66,13 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--grid-cols, 2), 1fr);
-  gap: 6px;
+  gap: 2px;
 }
 
 @media (min-width: 640px) {
   .grid {
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 8px;
+    gap: 3px;
   }
   .dateHeader { padding: 20px 4px 12px; }
 }
@@ -80,7 +80,7 @@
 @media (min-width: 1024px) {
   .grid {
     grid-template-columns: repeat(4, 1fr) !important;
-    gap: 10px;
+    gap: 3px;
   }
 }
 
