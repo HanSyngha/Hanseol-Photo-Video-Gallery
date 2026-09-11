@@ -1,9 +1,9 @@
 const BASE = '/api';
 const IS_PWA = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
+let refreshPromise: Promise<boolean> | null = null;
 
-async function request<T>(url: string, options?: RequestInit & { skipAuthRedirect?: boolean }): Promise<T> {
-  const { skipAuthRedirect, ...fetchOptions } = options || {};
-  const res = await fetch(BASE + url, {
+function buildFetchOptions(fetchOptions?: RequestInit): RequestInit {
+  return {
     credentials: 'include',
     ...fetchOptions,
     headers: {
@@ -11,7 +11,27 @@ async function request<T>(url: string, options?: RequestInit & { skipAuthRedirec
       ...(!fetchOptions?.body || fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...fetchOptions?.headers,
     },
-  });
+  };
+}
+
+// access 만료(401) 시 refresh 쿠키로 한 번 갱신 후 재시도. 동시 다발 401은 갱신 1회로 합친다.
+async function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(BASE + '/auth/refresh', buildFetchOptions({ method: 'POST' }))
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
+async function request<T>(url: string, options?: RequestInit & { skipAuthRedirect?: boolean }): Promise<T> {
+  const { skipAuthRedirect, ...fetchOptions } = options || {};
+  let res = await fetch(BASE + url, buildFetchOptions(fetchOptions));
+  if (res.status === 401 && url !== '/auth/refresh' && url !== '/auth/logout') {
+    const refreshed = await refreshSession();
+    if (refreshed) res = await fetch(BASE + url, buildFetchOptions(fetchOptions));
+  }
   if (res.status === 401) {
     if (!skipAuthRedirect && !window.location.pathname.startsWith('/login')) {
       window.location.href = '/login';
